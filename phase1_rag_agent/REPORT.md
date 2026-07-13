@@ -74,8 +74,25 @@ score gap. This is the concrete payoff of the bonus retrieval features.
 
 ### 4.2 Acceptance tests
 
-<!-- RESULTS_PLACEHOLDER -->
-_Acceptance run output is inserted here after execution (see §Appendix)._
+Run on the provided earnings deck with **`LLM_PROVIDER=gemini` / `gemini-flash-lite-latest`**
+(full transcript: [`tests/acceptance_results_gemini.txt`](tests/acceptance_results_gemini.txt)):
+
+| # | Scenario | Result | Evidence |
+|---|----------|--------|----------|
+| 1 | Grounded fact — major business segments | ✅ PASS | Lists Infra & Utility core, New Industries (Green H2), Primary Industry, Services (IRM/Mining), Direct-to-Consumer, Airports/Roads — each cited `[p11:c18]`, `[p2:c3]`, `[p26:c39]` |
+| 2 | Numeric — consolidated total income H1-26 | ✅ PASS | "44,281 ₹ crore `[p22:c35]`" — correct value & period |
+| 3 | Cross-section — EBITDA change drivers | ✅ PASS | IRM/Commercial Mining volume+price down; Airports/ANIL up — cited `[p2:c2]`, `[p22:c35]` |
+| 4 | Negative control — CEO's email | ✅ PASS | "Not found in the document." (correct refusal) |
+| 5 | Follow-up — airport → passenger/cargo | ✅ PASS | Condensed follow-up retrieved `[p16:c26]`: Pax 45.1→46.0 Mn (+4%), Cargo 5.5→5.7 L-MT (+4%) |
+
+**5/5 passed.** The follow-up confirms chat-history-aware retrieval: "break that down into
+passenger and cargo" carried no explicit subject, yet was rewritten into a standalone query that
+retrieved the right page.
+
+For reference, the same pipeline on the **local `gemma2:2b`** answered the numeric question
+identically (`44,281 ₹ crore [p22:c35]`) but was slower (~90s/answer) and timed out on the broader
+"list all segments" question — see [ISSUES_LOG.md](ISSUES_LOG.md) §6.4. This is the practical case
+for the hosted model on the quality tier; the pipeline itself is provider-agnostic.
 
 ---
 
@@ -119,4 +136,10 @@ multi-agent extensibility the enterprise role expects.
 ---
 
 ## Appendix — raw acceptance output
-<!-- APPENDIX_PLACEHOLDER -->
+
+Full verbatim transcript (answers, per-question latency, and retrieved citations) is committed at
+[`tests/acceptance_results_gemini.txt`](tests/acceptance_results_gemini.txt). Reproduce with:
+
+```bash
+LLM_PROVIDER=gemini python -m tests.acceptance --pdf data/earnings_presentation_q2fy26.pdf
+```

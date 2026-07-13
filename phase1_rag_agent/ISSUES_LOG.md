@@ -85,6 +85,19 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 
 ---
 
+## 5b. Environment / tooling issues
+
+### 5b.1 ✅ Two Python installs → `uvicorn` console script used the wrong one
+- **Symptom:** `uvicorn src.api:app` crashed at startup with `ModuleNotFoundError: No module named 'faiss'`, even though `python3 -c "import faiss"` works fine.
+- **Root cause:** This box has **two Pythons** — miniconda **3.12** (where all deps are installed, and where `python3` points) and a system **3.10** with `~/.local` packages. The bare `uvicorn` console script has a shebang to the 3.10 interpreter, which lacks faiss/sentence-transformers.
+- **Fix:** Launch via the module form — **`python3 -m uvicorn src.api:app`** — which uses the same 3.12 interpreter as everything else. Verified: `/health`, `/ingest`, and a real `/chat` all returned correctly (answer `₹ 44,281 crore [p22:c35],[p2:c2]`).
+- **Lesson:** On multi-Python machines, prefer `python -m <tool>` over bare console scripts. (In the Docker image there's a single Python, so `uvicorn ...` is fine there.)
+- **Status:** ✅ Resolved.
+
+### 5b.2 ✅ End-to-end hosted path verified
+- Started the FastAPI service, ingested the deck (63 chunks/41 pages), and ran a live `/chat` → correct grounded answer + citations + top-k retrieval debug in the JSON response. The hosting deliverable is proven, not just wired.
+- **Status:** ✅ Verified.
+
 ## 6. LLM / generation issues
 
 ### 6.1 ✅ Local Ollama path verified
@@ -97,9 +110,37 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - **Lesson:** Never hardcode a model id from memory — verify it's live. (This is exactly why the repo pins model ids in one config file, not scattered in code.)
 - **Status:** ✅ Resolved.
 
+### 6.4 🔴→🔶 Local Ollama timed out (>180s) on first acceptance question
+- **Symptom:** The unbuffered acceptance rerun crashed on question 1 ("major business segments") with `TimeoutError: timed out` from the Ollama HTTP call (180s limit) → wrapped as `LLMError`.
+- **Analysis:** The single numeric question earlier answered in ~90s, but under a fresh subprocess (cold model load + a broader "list all segments" prompt that pulls more context) `gemma2:2b` on a 12-core CPU with ~5 GiB free RAM exceeded 180s. This is a **CPU/RAM constraint**, not a logic bug.
+- **Response:** (a) It motivated switching to the just-provided Gemini key for the eval run; (b) local remains a valid offline proof but is slow/flaky for full suites on this box. Would bump the timeout or use a smaller/faster model for a pure-local demo.
+- **Status:** 🔶 Worked around (moved eval to Gemini; local still works for single questions).
+
+### 6.5 🔴→✅ Gemini free-tier: key format, model mapping, and 429 rate limits
+- **Key format:** the provided key is the **new `AQ.` format** (not `AIza`). It authenticates fine with `google-generativeai` (`genai.configure`) — confirmed by getting a 429 (quota) rather than 401 (auth).
+- **Model gotcha:** `gemini-flash-latest` resolves to **`gemini-3.5-flash`**, whose free tier allows only **5 requests/minute** — a 6–7 call suite blows it instantly. Got 429 on the first call (shared key likely already used by the team).
+- **Fixes applied:**
+  1. Pinned `GEMINI_MODEL=gemini-2.5-flash-lite` (higher free quota than 3.5-flash).
+  2. Added **429 backoff/retry** (0/20/40/60s) in `_gemini_generate` respecting the free-tier limit.
+  3. Will space out acceptance calls and run the suite **once** (user said "use sparingly").
+- **Privacy note (from the key's README):** free tier may train on submitted content → *do not send confidential Adani data*. Our earnings deck is **public investor material**, so it's acceptable; flagged in docs for anyone reusing this with private docs.
+- **Security:** key lives only in gitignored `.env`; never committed.
+- **Status:** ✅ Resolved (hardened + documented).
+
+### 6.6 🔴→✅ Gemini model 404s: new keys only get the newest models
+- **Symptom:** After pinning `gemini-2.5-flash-lite`, the suite crashed with `404 This model ... is no longer available to new users`. Same for `gemini-2.5-flash`.
+- **Diagnosis:** Listed the key's models via REST (`GET /v1beta/models`) — a **secondary bug surfaced**: the SDK's `list_models()` threw `AttributeError: FieldDescriptor object has no attribute 'is_repeated'` (protobuf-version mismatch in the installed `google-generativeai`), so I fell back to raw `curl` to enumerate. The 2.5 models appear in the list but 404 on `generateContent` — because this is a **newly-created key/project**, which Google restricts to the **newest 3.x models** only. Grandfathered projects keep 2.x.
+- **Fix:** Use the version-agnostic **`*-latest` aliases**. `gemini-flash-lite-latest` returned `'OK'` on a single call. Set it as default in `config.py` + `.env.example` with an explanatory comment.
+- **Lesson:** For shared/unknown keys, prefer `*-latest` aliases over pinned version numbers.
+- **Status:** ✅ Resolved.
+
+### 6.7 ℹ️ Added inter-call spacing for hosted free tier
+- Free-tier RPM is tight (`gemini-flash-latest`/3.5-flash = 5 RPM). Added 5s spacing between acceptance questions when `provider=gemini`, on top of the 429 backoff, so a 6–7 call suite stays under the limit.
+- **Status:** ℹ️ Mitigation.
+
 ### 6.3 ℹ️ Cost sizing → API is effectively free for this workload
-- Sized the acceptance suite at ~1,500 input + 250 output tokens/question. 500 dev calls ≈ **$0.13**. Documented full analysis + GPU-rental alternative in `COST_AND_MODEL_RESEARCH.md`.
-- **Decision:** default stays local `gemma2:2b` ($0, offline proof); recommend Gemini 2.5 Flash-Lite for the quality/eval tier (aligns with Phase-2 GCP/Gemini).
+- Sized the acceptance suite at ~1,500 input + 250 output tokens/question. 500 dev calls ≈ **$0.13**. Full analysis + GPU-rental alternative in `COST_AND_MODEL_RESEARCH.md`.
+- **Decision:** default stays local `gemma2:2b` ($0, offline proof); recommend Gemini `*-lite-latest` for the quality/eval tier (aligns with Phase-2 GCP/Gemini).
 - **Status:** ℹ️ Decision recorded.
 
 ---
@@ -112,6 +153,13 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - **Fix:** Re-run with `python3 -u` (or `PYTHONUNBUFFERED=1`) for live, per-question output; point the monitor at the actual output file.
 - **Lesson:** Always run long background Python with `-u` when you need progress visibility.
 - **Status:** ✅ Resolved.
+
+### 7.2 ✅ Full acceptance suite: 5/5 passed on Gemini
+- Ran the mandated 5 scenarios end-to-end on `gemini-flash-lite-latest`: grounded-fact, numeric, cross-section, negative-control, and multi-turn follow-up — **all PASS** (transcript in `tests/acceptance_results_gemini.txt`).
+- **Follow-up correctness proof:** "Break that down into passenger and cargo changes" (no explicit subject) was condensed into a standalone query and retrieved `[p16:c26]`: Pax 45.1→46.0 Mn (+4%), Cargo 5.5→5.7 L-MT (+4%). Chat-history awareness works.
+- **Negative control proof:** "CEO's email" → "Not found in the document." even though 5 chunks were retrieved — the grounding/citation-validation refused rather than fabricated.
+- Per-question latency 3.6–9.6s on Gemini (vs ~90s local). No 429s with model=`*-lite-latest` + 5s spacing + backoff.
+- **Status:** ✅ Pass.
 
 ### 7.1 ✅ Numeric question passed on the local 2B model (better than expected)
 - **Q:** "What is the consolidated total income in H1-26?"

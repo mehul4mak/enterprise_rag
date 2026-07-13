@@ -78,12 +78,36 @@ That's why even a small local model answers numeric questions correctly and refu
 
 ---
 
+## Run as a hosted service (API)
+
+```bash
+export LLM_PROVIDER=gemini GOOGLE_API_KEY=...   # or LLM_PROVIDER=ollama
+export INDEX_PDF=./data/earnings_presentation_q2fy26.pdf
+uvicorn src.api:app --host 0.0.0.0 --port 8000  # Swagger UI at /docs
+```
+Or containerized: `docker compose up --build`. Full details in **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+```bash
+curl -s localhost:8000/chat -H 'Content-Type: application/json' \
+  -d '{"question":"What is the consolidated total income in H1-26?"}' | jq
+# → {"answer":"... 44,281 ₹ crore [p22:c35].","citations":["[p22:c35]"], ...}
+```
+
 ## Run the tests
 
 ```bash
-python -m pytest tests/test_chunking.py -q      # unit tests
-python -m tests.acceptance --pdf data/earnings_presentation_q2fy26.pdf   # 5 mandated scenarios
+python -m pytest tests/test_chunking.py tests/test_grounding.py tests/test_api.py -q   # offline unit tests
+python -m tests.acceptance --pdf data/earnings_presentation_q2fy26.pdf                 # 5 mandated scenarios (needs LLM)
 ```
+
+Results of the 5 mandated scenarios (5/5 pass on Gemini) are committed at
+[`tests/acceptance_results_gemini.txt`](tests/acceptance_results_gemini.txt) and summarized in
+[REPORT.md](REPORT.md) §4.2.
+
+## CI/CD
+
+- `.github/workflows/ci.yml` — lint (ruff) + offline unit tests on every push/PR.
+- `.github/workflows/docker.yml` — builds the container (pushes to GHCR on version tags).
 
 ---
 
@@ -91,11 +115,17 @@ python -m tests.acceptance --pdf data/earnings_presentation_q2fy26.pdf   # 5 man
 
 ```
 phase1_rag_agent/
-├── main.py                     # single-command entrypoint (chat loop)
-├── requirements.txt
+├── main.py                     # single-command CLI entrypoint (chat loop)
+├── requirements.txt            # runtime deps
+├── requirements-dev.txt        # + pytest, ruff, httpx
+├── pyproject.toml              # ruff + pytest config
+├── Dockerfile                  # container image (pre-caches models, non-root)
+├── docker-compose.yml          # host the API (+ optional local ollama)
+├── .dockerignore
 ├── .env.example                # provider config (copy to .env)
 ├── README.md
 ├── REPORT.md                   # steps, reasoning, results, Phase-2 plan
+├── DEPLOYMENT.md               # run/host/CI guide + API reference
 ├── COST_AND_MODEL_RESEARCH.md  # model & GPU cost analysis
 ├── ISSUES_LOG.md               # full engineering audit log
 ├── data/                       # PDFs (earnings deck + 2 samples)
@@ -107,8 +137,14 @@ phase1_rag_agent/
 │   ├── retriever.py            # RRF fusion + cross-encoder rerank
 │   ├── llm.py                  # ollama/openai/anthropic/gemini backends
 │   ├── prompts.py              # grounding + condensation prompts
-│   └── agent.py                # multi-turn orchestration + refusal logic
+│   ├── agent.py                # multi-turn orchestration + refusal logic
+│   └── api.py                  # FastAPI service (hosting)
 └── tests/
-    ├── test_chunking.py
-    └── acceptance.py
+    ├── test_chunking.py        # chunking unit tests
+    ├── test_grounding.py       # refusal / citation-validation unit tests
+    ├── test_api.py             # FastAPI smoke tests
+    ├── acceptance.py           # 5 mandated scenarios (needs LLM)
+    └── acceptance_results_gemini.txt   # committed run transcript (5/5 pass)
 ```
+
+CI/CD workflows live at the **repo root** in `.github/workflows/`.
