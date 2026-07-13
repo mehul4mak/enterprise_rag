@@ -106,6 +106,13 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 
 ## 7. Result-quality / acceptance-test issues
 
+### 7.0 ✅ Tooling gotcha: Python block-buffers stdout to a file → blind during long runs
+- **Symptom:** Ran the acceptance suite with output redirected to a file; the file stayed **0 bytes** for minutes even though the process was alive at ~21% CPU with `gemma2:2b` loaded. A `Monitor` grepping for the end marker never fired.
+- **Root cause:** CPython uses **block buffering** (not line buffering) when stdout is a pipe/file, so nothing is written until the buffer fills or the process exits. On a slow CPU run (~6–7 LLM calls) that means total blindness until the very end.
+- **Fix:** Re-run with `python3 -u` (or `PYTHONUNBUFFERED=1`) for live, per-question output; point the monitor at the actual output file.
+- **Lesson:** Always run long background Python with `-u` when you need progress visibility.
+- **Status:** ✅ Resolved.
+
 ### 7.1 ✅ Numeric question passed on the local 2B model (better than expected)
 - **Q:** "What is the consolidated total income in H1-26?"
 - **A:** `44,281 ₹ crore [p22:c35]` — correct value, correct period (H1-26 not Q2), valid citation to a retrieved chunk.
