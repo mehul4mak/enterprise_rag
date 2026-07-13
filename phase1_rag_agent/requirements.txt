@@ -1,7 +1,19 @@
+# --- core RAG ---
 pymupdf>=1.24
 sentence-transformers>=3.0
 faiss-cpu>=1.9
 rank_bm25>=0.2.2
 numpy>=1.26
-requests>=2.31
 python-dotenv>=1.0
+
+# --- web service (hosting) ---
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+
+# --- LLM providers ---
+# Local Ollama needs no SDK (plain HTTP). Gemini is the recommended hosted provider:
+google-generativeai>=0.8
+# Optional — uncomment if you set LLM_PROVIDER to these:
+# openai>=1.0
+# anthropic>=0.40

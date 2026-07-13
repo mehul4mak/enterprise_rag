@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]  # line length handled by formatter; long strings in prompts are fine
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Exclude the acceptance harness from default `pytest` runs (it needs an LLM backend).
+python_files = ["test_*.py"]

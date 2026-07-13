@@ -1,0 +1,39 @@
+# Hosting the Enterprise RAG service.
+#
+#   docker compose up --build
+#
+# Default provider is Gemini (set GOOGLE_API_KEY in .env). To run fully local instead,
+# uncomment the `ollama` service and set LLM_PROVIDER=ollama + OLLAMA_HOST=http://ollama:11434.
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Provider selection (defaults shown; override in .env or here).
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma2:2b}
+      # Auto-index a document at startup (path is inside the container).
+      INDEX_PDF: ${INDEX_PDF:-/app/data/earnings_presentation_q2fy26.pdf}
+    volumes:
+      # Mount PDFs and persist the index cache across restarts.
+      - ./data:/app/data:ro
+      - rag_cache:/app/.cache
+    restart: unless-stopped
+
+  # --- Optional local LLM (uncomment for a fully offline, no-API deployment) ---
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+  #   restart: unless-stopped
+
+volumes:
+  rag_cache:
+  # ollama_models:
