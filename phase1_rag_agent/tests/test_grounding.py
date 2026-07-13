@@ -11,7 +11,9 @@ def _fake_retrieved():
         Chunk(chunk_id="c35", page=22, text="TOTAL INCOME 44,281"),
         Chunk(chunk_id="c2", page=2, text="Total Income 49,263 44,281"),
     ]
-    return [RetrievedChunk(chunk=c, dense_score=1.0, sparse_score=1.0, fused_score=1.0) for c in chunks]
+    return [
+        RetrievedChunk(chunk=c, dense_score=1.0, sparse_score=1.0, fused_score=1.0) for c in chunks
+    ]
 
 
 def _agent():

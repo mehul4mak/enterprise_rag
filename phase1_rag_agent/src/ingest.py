@@ -65,7 +65,7 @@ def chunk_pages(pages: list[str], chunk_size: int, overlap: int) -> list[Chunk]:
         page_num = page_idx + 1
         if not page_text.strip():
             continue
-        lines = [l for l in page_text.split("\n") if l.strip()]
+        lines = [ln for ln in page_text.split("\n") if ln.strip()]
         for piece in _pack_lines(lines, chunk_size, overlap):
             counter += 1
             chunks.append(Chunk(chunk_id=f"c{counter}", page=page_num, text=piece))

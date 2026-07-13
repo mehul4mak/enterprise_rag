@@ -32,11 +32,13 @@ class RetrievedChunk:
         return self.rerank_score if self.rerank_score is not None else self.fused_score
 
 
-def _dense_search(query: str, index: HybridIndex, k: int, config: Config) -> list[tuple[int, float]]:
+def _dense_search(
+    query: str, index: HybridIndex, k: int, config: Config
+) -> list[tuple[int, float]]:
     qvec = embed_texts([query], config.embedding_model)
     k = min(k, index.faiss_index.ntotal)
     scores, ids = index.faiss_index.search(qvec, k)
-    return [(int(i), float(s)) for i, s in zip(ids[0], scores[0]) if i != -1]
+    return [(int(i), float(s)) for i, s in zip(ids[0], scores[0], strict=False) if i != -1]
 
 
 def _sparse_search(query: str, index: HybridIndex, k: int) -> list[tuple[int, float]]:
@@ -56,7 +58,9 @@ def _reciprocal_rank_fusion(
     return fused
 
 
-def retrieve(query: str, index: HybridIndex, config: Config, use_reranker: bool = True) -> list[RetrievedChunk]:
+def retrieve(
+    query: str, index: HybridIndex, config: Config, use_reranker: bool = True
+) -> list[RetrievedChunk]:
     dense = _dense_search(query, index, config.top_k_dense, config)
     sparse = _sparse_search(query, index, config.top_k_sparse)
 
@@ -80,7 +84,7 @@ def retrieve(query: str, index: HybridIndex, config: Config, use_reranker: bool 
         reranker = _get_reranker(config.reranker_model)
         pairs = [(query, r.chunk.text) for r in results]
         rerank_scores = reranker.predict(pairs)
-        for r, s in zip(results, rerank_scores):
+        for r, s in zip(results, rerank_scores, strict=False):
             r.rerank_score = float(s)
         results.sort(key=lambda r: r.rerank_score, reverse=True)
 

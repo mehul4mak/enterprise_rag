@@ -75,9 +75,7 @@ class RAGAgent:
         search_query = self._condense(question)
         retrieved = retrieve(search_query, self.index, self.config)
 
-        context_blocks = [
-            f"{r.chunk.citation} {r.chunk.text}" for r in retrieved
-        ]
+        context_blocks = [f"{r.chunk.citation} {r.chunk.text}" for r in retrieved]
         prompt = build_qa_prompt(question, context_blocks)
         raw = generate(prompt, SYSTEM_GROUNDED, self.config)
         answer = self._postprocess(raw, retrieved)

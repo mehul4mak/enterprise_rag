@@ -30,12 +30,19 @@ def run():
     index = get_or_build_index(args.pdf, CONFIG)
     agent = RAGAgent(index=index, config=CONFIG)
 
+    # Space out calls on hosted free tiers to respect per-minute rate limits.
+    spacing = 5.0 if CONFIG.llm_provider == "gemini" else 0.0
+
     def ask(q):
         t0 = time.time()
         turn = agent.ask(q)
         dt = time.time() - t0
-        print(f"\n{'='*70}\nQ: {q}\nA: {turn.answer}\n[{dt:.1f}s | retrieved: "
-              f"{[r.chunk.citation for r in turn.retrieved]}]")
+        print(
+            f"\n{'=' * 70}\nQ: {q}\nA: {turn.answer}\n[{dt:.1f}s | retrieved: "
+            f"{[r.chunk.citation for r in turn.retrieved]}]"
+        )
+        if spacing:
+            time.sleep(spacing)
         return turn
 
     results = []
@@ -64,7 +71,7 @@ def run():
     t = ask("Break that down into passenger and cargo changes.")
     results.append(("follow-up", t.answer != NOT_FOUND and has_citation(t.answer)))
 
-    print(f"\n{'='*70}\nSCORECARD")
+    print(f"\n{'=' * 70}\nSCORECARD")
     for name, ok in results:
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}")
     passed = sum(1 for _, ok in results if ok)
