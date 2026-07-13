@@ -67,12 +67,31 @@ def _anthropic_generate(prompt: str, system: str, config: Config) -> str:
 def _gemini_generate(prompt: str, system: str, config: Config) -> str:
     if not config.google_api_key:
         raise LLMError("LLM_PROVIDER=gemini but GOOGLE_API_KEY is empty in .env")
+    import time
+
     import google.generativeai as genai
+    from google.api_core import exceptions as gexc
 
     genai.configure(api_key=config.google_api_key)
     model = genai.GenerativeModel(config.gemini_model, system_instruction=system)
-    resp = model.generate_content(prompt, generation_config={"temperature": 0.0})
-    return resp.text.strip()
+
+    # Free-tier keys are rate-limited (HTTP 429). Back off politely and retry a few times.
+    delays = [0, 20, 40, 60]
+    last_err: Exception | None = None
+    for wait in delays:
+        if wait:
+            time.sleep(wait)
+        try:
+            resp = model.generate_content(prompt, generation_config={"temperature": 0.0})
+            return resp.text.strip()
+        except gexc.ResourceExhausted as e:  # 429 quota
+            last_err = e
+            continue
+    raise LLMError(
+        f"Gemini rate-limited (429) after retries on model '{config.gemini_model}'. "
+        f"Free tier is very limited; wait a minute or switch GEMINI_MODEL to a higher-quota model. "
+        f"Underlying: {last_err}"
+    )
 
 
 _PROVIDERS = {

@@ -24,7 +24,7 @@ class Config:
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
 
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
