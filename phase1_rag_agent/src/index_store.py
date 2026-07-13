@@ -67,7 +67,9 @@ def _load(cache_dir: Path) -> HybridIndex | None:
     chunks = [Chunk(chunk_id=c["chunk_id"], page=c["page"], text=c["text"]) for c in meta["chunks"]]
     faiss_index = faiss.read_index(str(index_file))
     bm25 = BM25Okapi([tokenize(c.text) for c in chunks])
-    return HybridIndex(chunks=chunks, faiss_index=faiss_index, bm25=bm25, source_pdf=meta["source_pdf"])
+    return HybridIndex(
+        chunks=chunks, faiss_index=faiss_index, bm25=bm25, source_pdf=meta["source_pdf"]
+    )
 
 
 def get_or_build_index(pdf_path: str, config: Config, force_reindex: bool = False) -> HybridIndex:
