@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Caches / build artifacts
+.cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# OS noise
+.DS_Store
+
+# Local scratch
+*.log
