@@ -1,0 +1,10 @@
+# GCP backend (BACKEND=gcp) SDKs — install in the Cloud Run image (see Dockerfile.gcp).
+-r requirements.txt
+google-cloud-aiplatform>=1.60      # Vertex AI: embeddings, Vector Search, Gemini (vertexai.*)
+google-cloud-documentai>=2.29      # Document AI parser
+google-cloud-discoveryengine>=0.11 # Vertex AI Ranking API (rerank)
+
+# NOTE on protobuf: the local dev box hit a protobuf C-extension/pure-Python skew
+# (ISSUES_LOG §8.1) that breaks importing vertexai. A FRESH image install (as here) resolves it
+# because pip installs a consistent protobuf matched to the google-cloud-* libs. Do NOT pin an
+# incompatible protobuf; let the google-cloud-* deps constrain it.

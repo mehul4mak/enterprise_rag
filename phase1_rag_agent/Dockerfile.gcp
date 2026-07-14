@@ -1,0 +1,23 @@
+# Cloud Run image for the GCP backend (BACKEND=gcp).
+# Embeddings/vector-search/rerank/LLM are all Vertex-managed, so — unlike the local Dockerfile —
+# this image does NOT pre-download sentence-transformers models (they're never used at runtime).
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    BACKEND=gcp
+
+WORKDIR /app
+
+COPY requirements.txt requirements-gcp.txt ./
+RUN pip install --no-cache-dir -r requirements-gcp.txt
+
+COPY src ./src
+COPY main.py ./
+
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
+
+EXPOSE 8000
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]

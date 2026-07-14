@@ -1,0 +1,44 @@
+# Build the GCP-backend image, push to Artifact Registry, deploy to Cloud Run.
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions _REGION=asia-south1
+# Assumes the Terraform in infra/terraform has already created the repo, service, index, etc.
+
+substitutions:
+  _REGION: asia-south1
+  _REPO: rag
+  _SERVICE: enterprise-rag
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.gcp
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/enterprise-rag:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/enterprise-rag:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "--all-tags", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/enterprise-rag"]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --region=${_REGION}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/enterprise-rag:$SHORT_SHA
+      - --quiet
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/enterprise-rag:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/enterprise-rag:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
