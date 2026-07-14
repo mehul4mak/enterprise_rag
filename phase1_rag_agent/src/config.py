@@ -49,6 +49,10 @@ class Config:
     # data residency: off | regional | strict  (strict = local-only, blocks external LLM egress)
     data_residency: str = os.getenv("DATA_RESIDENCY", "off").lower()
 
+    # --- Phase 4B: optimization ---
+    semantic_cache: bool = os.getenv("SEMANTIC_CACHE", "off").lower() in ("on", "1", "true")
+    cache_threshold: float = float(os.getenv("CACHE_THRESHOLD", "0.97"))
+
     # --- Phase 3 GCP settings (consumed by src/providers/gcp.py) ---
     gcp_project: str = os.getenv("GCP_PROJECT", "")
     gcp_location: str = os.getenv("GCP_LOCATION", "asia-south1")  # Mumbai (India-sovereign)
@@ -60,6 +64,16 @@ class Config:
     vector_index_id: str = os.getenv("VECTOR_INDEX_ID", "")
     vector_endpoint_id: str = os.getenv("VECTOR_ENDPOINT_ID", "")
     vector_deployed_index_id: str = os.getenv("VECTOR_DEPLOYED_INDEX_ID", "")
+
+    @property
+    def active_model(self) -> str:
+        """The model string used for the current provider (for cost attribution)."""
+        return {
+            "gemini": self.gemini_model,
+            "openai": self.openai_model,
+            "anthropic": self.anthropic_model,
+            "ollama": self.ollama_model,
+        }.get(self.llm_provider, self.llm_provider)
 
 
 CONFIG = Config()

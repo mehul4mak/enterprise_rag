@@ -28,6 +28,7 @@ from .config import Config
 from .governance import guardrails
 from .governance.lineage import build_record, record_lineage
 from .grounding import postprocess_answer
+from .observability.cost import estimate_call_cost
 from .observability.logging_setup import get_logger, log_event
 from .observability.metrics import METRICS
 from .observability.tracing import Trace, export_otel
@@ -52,6 +53,16 @@ class GraphState(TypedDict, total=False):
     blocked: bool
     guard_findings: list
     trace: Trace
+
+
+def _record_cost(span, config: Config, prompt: str, completion: str) -> None:
+    """Attach token/cost estimates to an LLM span and to process metrics."""
+    est = estimate_call_cost(config.active_model, prompt, completion)
+    span.set(**est)
+    METRICS.incr("llm.input_tokens", est["input_tokens"])
+    METRICS.incr("llm.output_tokens", est["output_tokens"])
+    # cost is fractional; track in micro-USD to keep the counter integer-friendly
+    METRICS.incr("llm.cost_micro_usd", int(round(est["cost_usd"] * 1_000_000)))
 
 
 def build_graph(retriever: Retriever, llm: LLMProvider, config: Config, source_document: str = ""):
@@ -82,6 +93,7 @@ def build_graph(retriever: Retriever, llm: LLMProvider, config: Config, source_d
             except Exception:  # noqa: BLE001
                 sp.set(rewritten=False, error=True)
                 return {"search_query": question}
+            _record_cost(sp, config, SYSTEM_CONDENSE + prompt, rewritten)
             if not rewritten or len(rewritten) > 300:
                 sp.set(rewritten=False)
                 return {"search_query": question}
@@ -107,6 +119,7 @@ def build_graph(retriever: Retriever, llm: LLMProvider, config: Config, source_d
             prompt = build_qa_prompt(state["question"], context_blocks)
             answer = llm.generate(prompt, SYSTEM_GROUNDED)
             sp.set(chars=len(answer))
+            _record_cost(sp, config, SYSTEM_GROUNDED + prompt, answer)
             return {"answer": answer}
 
     def validate_node(state: GraphState) -> GraphState:
@@ -149,6 +162,7 @@ def build_graph(retriever: Retriever, llm: LLMProvider, config: Config, source_d
             record_lineage(record)
         METRICS.record_trace(trace)
         export_otel(trace)
+        cost_usd = round(sum(sp.attributes.get("cost_usd", 0.0) for sp in trace.spans), 8)
         log_event(
             _LOG,
             "rag.query.complete",
@@ -158,6 +172,7 @@ def build_graph(retriever: Retriever, llm: LLMProvider, config: Config, source_d
             blocked=state.get("blocked", False),
             refused=record.refused,
             latencies=trace.latencies(),
+            cost_usd=cost_usd,
             citations=record.cited,
         )
         return {}
@@ -205,6 +220,16 @@ class RAGGraphAgent:
 
     def ask(self, question: str) -> Turn:
         hist = [(t.question, t.answer) for t in self.history[-self.config.max_history_turns :]]
+
+        # Semantic cache: only for standalone (no-history) questions — follow-ups depend on history.
+        cacheable = self.config.semantic_cache and not hist
+        qvec = self._query_embedding(question) if cacheable else None
+        if qvec is not None:
+            cached = self._cache_lookup(question, qvec)
+            if cached is not None:
+                self.history.append(cached)
+                return cached
+
         trace = Trace()
         result = self._graph.invoke({"question": question, "history": hist, "trace": trace})
         turn = Turn(
@@ -216,4 +241,31 @@ class RAGGraphAgent:
             blocked=result.get("blocked", False),
         )
         self.history.append(turn)
+        if qvec is not None and not turn.blocked:
+            from .optimize.semantic_cache import CACHE
+
+            CACHE.put(self.source_document, qvec, turn.answer, turn.retrieved)
         return turn
+
+    def _query_embedding(self, question: str):
+        from .embeddings import embed_texts
+
+        return embed_texts([question], self.config.embedding_model)[0]
+
+    def _cache_lookup(self, question: str, qvec) -> Turn | None:
+        from .optimize.semantic_cache import CACHE
+
+        hit = CACHE.get(self.source_document, qvec, self.config.cache_threshold)
+        if hit is None:
+            METRICS.incr("cache.miss")
+            return None
+        answer, retrieved = hit
+        METRICS.incr("cache.hit")
+        return Turn(
+            question=question,
+            answer=answer,
+            retrieved=retrieved,
+            trace={"cache_hit": True, "total_latency_ms": 0.0, "spans": []},
+            guard_findings=[],
+            blocked=False,
+        )
