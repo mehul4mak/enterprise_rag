@@ -296,3 +296,27 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - `test_providers.py` previously asserted the GCP stubs raise `NotImplementedError`; the Phase-3
   impls raise a clear `ValueError` on missing config instead. Updated the test accordingly.
 - **Status:** ✅ Resolved.
+
+---
+
+# ===== PHASE 4A (evaluation harness) =====
+
+## 13. Eval harness
+
+### 13.1 ✅ Built a RAG eval harness (deterministic + LLM-as-judge); all gates pass
+- `src/eval/`: golden `dataset.jsonl` (7 Qs incl. 2 negative controls), `judges.py` (deterministic
+  refusal/citation-validity/fact checks + a combined LLM-judge returning faithfulness/relevance/
+  citation-support in ONE call to save tokens), `harness.py` (runs agent → scores → gates → JSON+MD).
+- **Result:** 7/7, all gates pass — behaviour 1.0, citation-validity 1.0, facts 1.0, faithfulness
+  1.0, relevance 1.0. New `share_price` negative control also correctly refused.
+- **Honest caveat logged:** judge = Gemini grading Gemini (self-judge) → lenient; the *deterministic*
+  metrics are the independent evidence. Production: different/stronger judge + human spot-checks +
+  adversarial questions. Documented in `docs/LEARNING_LOG.md`.
+- 6 eval unit tests (deterministic, no LLM) added to CI. Fixed a `to_markdown` KeyError on missing
+  `latency_ms` (made it `.get`).
+- **Status:** ✅ Working; caveat documented.
+
+### 13.2 ℹ️ Started docs/LEARNING_LOG.md (user request: follow-along learning md)
+- Plain-language walkthrough of each phase (what/why/lesson) + a teaching section on the eval
+  metrics and LLM-as-judge. Complements ISSUES_LOG (audit) and REPORT (design).
+- **Status:** ℹ️ Ongoing.
