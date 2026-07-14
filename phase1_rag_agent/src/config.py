@@ -42,6 +42,8 @@ class Config:
     backend: str = os.getenv("BACKEND", "local").lower()
     # local PDF parser: pymupdf (fast default) | pdfplumber | docling | easyocr | vlm
     parser: str = os.getenv("PARSER", "pymupdf").lower()
+    # local retriever: hybrid (FAISS+BM25+rerank, default) | graph (GraphRAG, Phase 5)
+    retriever: str = os.getenv("RETRIEVER", "hybrid").lower()
 
     # --- Governance / safety toggles ---
     guardrails_enabled: bool = os.getenv("GUARDRAILS", "on").lower() in ("on", "1", "true")

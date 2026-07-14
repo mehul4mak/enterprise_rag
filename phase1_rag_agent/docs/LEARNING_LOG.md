@@ -102,6 +102,43 @@ Both negative controls (`ceo_email`, and a new `share_price` market-data questio
 
 ---
 
+## Phase 5 — GraphRAG (page graph + graph retrieval)
+
+### The idea in one line
+Instead of treating the document as a flat list of chunks, build a **graph** (chunks connected by
+adjacency, semantic similarity, and shared keywords) and retrieve by **walking** it — plus draw the
+pages as a graph you can look at.
+
+### How it works (plain English)
+1. **Build the graph** — every chunk is a node; we connect two chunks if they're on the same page,
+   look similar (embedding cosine), or share keywords. Weighted edges.
+2. **Retrieve** — embed the question, find the most-similar "seed" chunks, then run **personalized
+   PageRank** so relevance *flows* to neighbours (multi-hop). Blend PageRank with plain similarity.
+3. **Visualize** — collapse the chunk graph to a **page graph** (node = page) and render a PNG +
+   interactive HTML.
+
+### Why we tried it, and the honest result
+Graph retrieval shines when answers require **connecting facts across many documents** or following
+**entity/reference links** (Microsoft's GraphRAG, multi-hop QA). We tested whether it helps *here*.
+
+**Result — a tie, and graph costs more.** On the 7-question eval set, hybrid and graph *both* scored
+behaviour 1.0 / citation-validity 1.0 / facts 1.0. They retrieve different chunks, but the answers
+come out equally correct — and the graph retriever is slower (it embeds the query and runs PageRank
+every call). So on this one small deck, GraphRAG buys nothing over hybrid + rerank. A **well-measured
+negative result is still a result** — we now know *not* to reach for GraphRAG on small single docs.
+
+### Key lesson
+**Match the retrieval method to the corpus.** On one small, dense document, a graph adds little (and
+PageRank can even promote well-connected-but-off-topic chunks over the single best one). GraphRAG
+earns its keep on **large, multi-document, entity-centric** knowledge bases — build the graph over
+extracted **entities/relations**, not just chunk-similarity within a single file.
+
+### Files
+- `src/graphrag/graph_build.py` — build the weighted chunk graph + page graph.
+- `src/graphrag/retriever.py` — `GraphRetriever` (personalized PageRank), selected by `RETRIEVER=graph`.
+- `src/graphrag/visualize.py` + `viz_cli.py` — page-graph PNG/HTML.
+- `docs/GRAPHRAG.md` — design + results; `docs/viz/page_graph.png` — the picture.
+
 ## Phase 4B — Cost & Latency Optimization (this step)
 
 ### The idea in one line

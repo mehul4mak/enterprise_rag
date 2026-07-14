@@ -44,6 +44,10 @@ def build_retriever(config: Config) -> Retriever:
         from .gcp import VertexVectorRetriever
 
         return VertexVectorRetriever(config)
+    if getattr(config, "retriever", "hybrid") == "graph":
+        from ..graphrag.retriever import GraphRetriever
+
+        return GraphRetriever(config)
     from .local import LocalHybridRetriever
 
     return LocalHybridRetriever(config)
