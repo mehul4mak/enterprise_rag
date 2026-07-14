@@ -8,10 +8,12 @@ questions **only from retrieved context**, with **page + chunk citations** and a
 Built for the Adani Gen-AI assessment. Runs **fully offline by default** (local Ollama), and
 switches to Gemini / OpenAI / Anthropic with a one-line `.env` change.
 
-> **Branches:** `phase-1-local-rag` = the local RAG agent + hosting/CI. `phase-2-gcp-local`
-> (this branch) = same behaviour re-architected as a **LangGraph** agent behind **provider
-> interfaces** (local ↔ GCP is a `BACKEND=` swap). `phase-3-gcp` (planned) = the Vertex/Document AI
-> implementations. See [REPORT.md](REPORT.md) §7 and the architecture below.
+> **Branches:** `phase-1-local-rag` = local RAG agent + hosting/CI. `phase-2-gcp-local` = same
+> behaviour re-architected as a **LangGraph** agent behind **provider interfaces** + governance
+> (guardrails/Model Armor/residency/lineage/tracing). `phase-3-gcp` = **deploy-ready** GCP backend
+> (Document AI + Vertex Vector Search/Ranking + Gemini-on-Vertex) with Terraform IaC for
+> `asia-south1` — see [GCP_SETUP.md](GCP_SETUP.md). Switch backends with `BACKEND=local|gcp`.
+> Future: [PHASE4_PLAN.md](PHASE4_PLAN.md) (multi-LoRA, cost/latency optimization, PII vault, non-RAG GenAI).
 
 ---
 

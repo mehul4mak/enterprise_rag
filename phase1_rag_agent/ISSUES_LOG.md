@@ -267,3 +267,32 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - **Action:** added `PARSER=pymupdf|pdfplumber|docling|easyocr|vlm` env selection (default pymupdf;
   pdfplumber recommended for numeric locality). Heavy deps isolated in `requirements-parsers.txt`.
 - **Status:** ℹ️ Explored, documented, wired.
+
+---
+
+# ===== PHASE 3 (real GCP — deploy-ready, no spend) =====
+
+## 12. GCP implementation
+
+### 12.1 ℹ️ No GCP creds locally → deploy-ready code + IaC (user-approved)
+- No `gcloud`/ADC in the dev env; real provisioning costs money. Per user decision: build
+  **deploy-ready code + Terraform IaC + setup guide, no spend**; target **asia-south1 (Mumbai)** for
+  India sovereignty.
+- **Delivered:** real `src/providers/gcp.py` bodies (Document AI, Vertex embeddings, Vertex Vector
+  Search + Ranking API, Gemini-on-Vertex); `infra/terraform/` (APIs, GCS, Doc AI processor, Vector
+  Search index+endpoint+deploy, Artifact Registry, KMS PII-vault key, runtime SA + least-priv IAM,
+  Cloud Run); `cloudbuild.yaml` + `Dockerfile.gcp` + `requirements-gcp.txt`; `GCP_SETUP.md`.
+- **Honesty:** the GCP provider code + IaC are written against current SDK/provider APIs but **not
+  run against live GCP** here — flagged in the module docstring and GCP_SETUP.md as validate-on-first-
+  deploy. Verified offline: module imports cleanly (lazy SDK imports), `BACKEND=gcp` constructs all
+  four providers, and missing config raises a clear `ValueError` (not an auth crash). 4 GCP tests
+  added (31 offline tests total).
+- **Design notes captured for first deploy:** Document AI online page cap (use batch for 41pp);
+  chunk metadata store (Firestore/BigQuery in prod vs in-memory demo map); private endpoint + VPC-SC
+  for hardened sovereignty; protobuf skew (§8.1) doesn't occur in the fresh Cloud Run image.
+- **Status:** ℹ️ Deploy-ready; unverified against live GCP by design.
+
+### 12.2 ✅ Updated a Phase-2 test for the now-real GCP providers
+- `test_providers.py` previously asserted the GCP stubs raise `NotImplementedError`; the Phase-3
+  impls raise a clear `ValueError` on missing config instead. Updated the test accordingly.
+- **Status:** ✅ Resolved.

@@ -180,11 +180,14 @@ follow-up condensed and retrieved `[p16:c26]` (Pax 45.1→46.0 Mn, Cargo 5.5→5
 constructs the stubs and raises `NotImplementedError` as designed (unit-tested in
 `tests/test_providers.py`).
 
-### Phase 3 (next branch) — what's left
-Implement the `gcp.py` stub bodies against a real GCP project, add ADC auth + a sovereign-region
-`vertexai.init`, provision a Vector Search index + Document AI processor, and deploy the container
-to Cloud Run. Optionally rebuild the graph in **Google ADK** (the JD's first-named framework) — the
-provider interfaces are unchanged.
+### Phase 3 — `phase-3-gcp` branch (deploy-ready, no spend)
+The `gcp.py` stubs are now **real implementations**: Document AI parsing, Vertex embeddings, Vertex
+Vector Search + Ranking API, and Gemini-on-Vertex. Shipped with **Terraform IaC** (`infra/terraform/`)
+targeting **asia-south1 (Mumbai)** for India sovereignty, `cloudbuild.yaml` + `Dockerfile.gcp`, and a
+step-by-step **[GCP_SETUP.md](GCP_SETUP.md)**. Switching is `BACKEND=gcp` — the LangGraph agent and
+governance layer are unchanged. (Honesty: written against current SDK/provider APIs but not run
+against live GCP here — validate on first deploy; verified offline that it imports, constructs, and
+fails with clear config errors.) Next: **Phase 4** — see [PHASE4_PLAN.md](PHASE4_PLAN.md).
 
 ---
 
