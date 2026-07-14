@@ -26,13 +26,14 @@ def test_unknown_backend_raises():
         build_llm(bad)
 
 
-def test_gcp_backend_selects_stubs_that_raise_not_implemented():
+def test_gcp_backend_selects_vertex_impls_needing_config():
+    # Phase 3: real Vertex/Document AI impls; without config they raise a clear ValueError
+    # (not an auth/import crash) before any SDK call. Detailed coverage in test_gcp.py.
     gcp = Config(backend="gcp")
     parser = build_document_parser(gcp)
-    # Stub is constructed fine but refuses to run until Phase 3 wires it.
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         parser.extract_pages("whatever.pdf")
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         build_llm(gcp).generate("hi", "sys")
 
 
