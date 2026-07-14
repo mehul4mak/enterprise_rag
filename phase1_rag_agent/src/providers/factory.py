@@ -19,9 +19,14 @@ def build_document_parser(config: Config) -> DocumentParser:
         from .gcp import DocumentAIParser
 
         return DocumentAIParser(config)
-    from .local import PyMuPDFParser
+    # Local: default PyMuPDF, but PARSER can select pdfplumber/docling/easyocr/vlm.
+    if config.parser == "pymupdf":
+        from .local import PyMuPDFParser
 
-    return PyMuPDFParser()
+        return PyMuPDFParser()
+    from .parsers import get_parser
+
+    return get_parser(config.parser)
 
 
 def build_embedder(config: Config) -> Embedder:

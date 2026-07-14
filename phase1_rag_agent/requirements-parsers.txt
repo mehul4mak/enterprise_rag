@@ -1,0 +1,9 @@
+# Optional heavy parsers for the visual-PDF comparison (src/providers/parsers.py).
+# Not needed for the default PyMuPDF pipeline — install only to run the parser benchmark or to
+# select PARSER=pdfplumber|docling|easyocr|vlm.
+-r requirements.txt
+pdfplumber>=0.11        # word/line + table extraction on real PDFs
+docling>=2.0            # IBM Docling: layout + table-structure recognition
+easyocr>=1.7            # OCR for scanned/image-only pages (no tesseract binary needed)
+pi_heif>=0.18           # image backend used by some parsers
+# VLM path uses the local Ollama moondream model over HTTP — no extra Python dep.

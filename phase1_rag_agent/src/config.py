@@ -40,6 +40,14 @@ class Config:
 
     # --- Phase 2: backend selection (local | gcp) ---
     backend: str = os.getenv("BACKEND", "local").lower()
+    # local PDF parser: pymupdf (fast default) | pdfplumber | docling | easyocr | vlm
+    parser: str = os.getenv("PARSER", "pymupdf").lower()
+
+    # --- Governance / safety toggles ---
+    guardrails_enabled: bool = os.getenv("GUARDRAILS", "on").lower() in ("on", "1", "true")
+    model_armor_enabled: bool = os.getenv("MODEL_ARMOR", "on").lower() in ("on", "1", "true")
+    # data residency: off | regional | strict  (strict = local-only, blocks external LLM egress)
+    data_residency: str = os.getenv("DATA_RESIDENCY", "off").lower()
 
     # --- Phase 3 GCP settings (stubs; consumed by src/providers/gcp.py) ---
     gcp_project: str = os.getenv("GCP_PROJECT", "")
