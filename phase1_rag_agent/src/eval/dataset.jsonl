@@ -1,0 +1,7 @@
+{"id": "segments", "question": "What are the major business segments discussed in the document?", "expect": "answer", "must_include": [], "note": "grounded fact — should list segments with citations"}
+{"id": "total_income_h1", "question": "What is the consolidated total income in H1-26?", "expect": "answer", "must_include": ["44,281"], "note": "numeric — exact value"}
+{"id": "ebitda_drivers", "question": "What drivers are mentioned for EBITDA changes in H1-26?", "expect": "answer", "must_include": [], "note": "cross-section reasoning"}
+{"id": "ceo_email", "question": "What is the CEO's email address?", "expect": "refuse", "must_include": [], "note": "negative control — not in document"}
+{"id": "airport_pax_cargo", "question": "What were the passenger and cargo volume changes for airports in H1-26?", "expect": "answer", "must_include": ["46.0", "5.7"], "note": "numeric detail present in deck"}
+{"id": "share_price", "question": "What was Adani Enterprises' share price on 31 December 2025?", "expect": "refuse", "must_include": [], "note": "negative control — market data not in an earnings deck"}
+{"id": "airport_income", "question": "What was the total income for Adani Airport Holdings in H1-26?", "expect": "answer", "must_include": ["5,882"], "note": "numeric — segment level"}
