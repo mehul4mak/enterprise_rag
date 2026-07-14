@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 .venv/
 eval_report.json
+
+# Large regenerable GraphRAG viz (make with: python -m src.graphrag.viz_cli)
+docs/viz/*.html

@@ -320,3 +320,31 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - Plain-language walkthrough of each phase (what/why/lesson) + a teaching section on the eval
   metrics and LLM-as-judge. Complements ISSUES_LOG (audit) and REPORT (design).
 - **Status:** ℹ️ Ongoing.
+
+---
+
+# ===== PHASE 5 (GraphRAG) =====
+
+## 14. GraphRAG prototype
+
+### 14.1 ℹ️ Built page/chunk graph + PageRank retriever + visualization
+- `src/graphrag/`: chunk graph (adjacency + semantic + keyword edges via networkx), `GraphRetriever`
+  (personalized PageRank blended with cosine) implementing the `Retriever` ABC, page-graph viz
+  (plotly HTML + matplotlib PNG). Selected by `RETRIEVER=hybrid|graph`. 5 unit tests (no LLM).
+- **Status:** ℹ️ Implemented.
+
+### 14.2 🔴→✅ Subagent worktree had no `.env` → comparison silently used local Ollama
+- **Symptom:** the hybrid-vs-graph eval comparison logged `provider: ollama` with `generate=142s`
+  (would take ~33 min), not Gemini.
+- **Root cause:** `.env` is gitignored, so it was NOT present in the isolated git worktree; `Config`
+  fell back to the default `LLM_PROVIDER=ollama` (gemma2:2b on CPU).
+- **Fix:** copied the parent's `.env` into the worktree (still gitignored there); re-ran on Gemini.
+- **Lesson:** gitignored config doesn't travel to worktrees/fresh checkouts — provision it explicitly.
+- **Status:** ✅ Resolved.
+
+### 14.3 ℹ️ Honest result: GraphRAG ~matches (doesn't beat) hybrid on this single small deck
+- On a 41-page deck the semantic graph is near-complete (63 nodes / ~500 edges), so PageRank is
+  weakly discriminative and can promote well-connected-but-off-topic chunks. Numbers in GRAPHRAG.md.
+- GraphRAG's real value is large **multi-document / entity-centric / multi-hop** corpora — build the
+  graph over extracted entities/relations, add community summaries. Documented as future work.
+- **Status:** ℹ️ Measured, documented (negative-ish but valid result).
