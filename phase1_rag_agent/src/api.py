@@ -90,6 +90,11 @@ class ChatResponse(BaseModel):
     answer: str
     citations: list[str]
     retrieved: list[RetrievedItem]
+    blocked: bool = False
+    guard_findings: list[str] = []
+    latency_ms: dict[str, float] = {}
+    total_latency_ms: float = 0.0
+    trace_id: str | None = None
 
 
 # ---------- routes ----------
@@ -128,7 +133,7 @@ def chat(req: ChatRequest) -> ChatResponse:
     session_id = req.session_id or uuid.uuid4().hex
     agent = state.sessions.get(session_id)
     if agent is None:
-        agent = new_agent(state.retriever, CONFIG)
+        agent = new_agent(state.retriever, CONFIG, source_document=state.pdf_path or "")
         state.sessions[session_id] = agent
 
     try:
@@ -136,6 +141,7 @@ def chat(req: ChatRequest) -> ChatResponse:
     except Exception as e:  # noqa: BLE001 — surface LLM/backend errors as 502
         raise HTTPException(status_code=502, detail=f"Generation failed: {e}") from e
 
+    trace = turn.trace or {}
     return ChatResponse(
         session_id=session_id,
         answer=turn.answer,
@@ -148,7 +154,20 @@ def chat(req: ChatRequest) -> ChatResponse:
             )
             for r in turn.retrieved
         ],
+        blocked=turn.blocked,
+        guard_findings=turn.guard_findings or [],
+        latency_ms={sp["name"]: sp["latency_ms"] for sp in trace.get("spans", [])},
+        total_latency_ms=trace.get("total_latency_ms", 0.0),
+        trace_id=trace.get("trace_id"),
     )
+
+
+@app.get("/metrics")
+def metrics() -> dict:
+    """Cloud Monitoring-style snapshot: per-stage latency summaries + counters."""
+    from .observability.metrics import METRICS
+
+    return METRICS.snapshot()
 
 
 @app.get("/sessions/{session_id}")
