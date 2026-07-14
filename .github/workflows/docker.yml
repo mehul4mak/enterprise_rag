@@ -5,7 +5,7 @@ name: Docker
 
 on:
   push:
-    branches: ["phase-1-local-rag", "main"]
+    branches: ["phase-1-local-rag", "phase-2-gcp-local", "main"]
     tags: ["v*"]
 
 jobs:
