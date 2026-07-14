@@ -19,19 +19,20 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from .agent import RAGAgent
 from .config import CONFIG
-from .index_store import HybridIndex, get_or_build_index
+from .graph import RAGGraphAgent
+from .pipeline import index_document, new_agent
+from .providers.base import Retriever
 
 _CITATION_RE = re.compile(r"\[p\d+(?::c\d+)?\]")
 
 
 class AppState:
-    """Holds the active index and per-session agents (in-memory)."""
+    """Holds the active indexed retriever and per-session graph agents (in-memory)."""
 
-    index: HybridIndex | None = None
+    retriever: Retriever | None = None
     pdf_path: str | None = None
-    sessions: dict[str, RAGAgent] = {}
+    sessions: dict[str, RAGGraphAgent] = {}
 
 
 state = AppState()
@@ -40,7 +41,7 @@ state = AppState()
 def _load_index(pdf_path: str) -> None:
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
-    state.index = get_or_build_index(pdf_path, CONFIG)
+    state.retriever = index_document(pdf_path, CONFIG)
     state.pdf_path = pdf_path
     state.sessions.clear()  # index changed → old histories are stale
 
@@ -96,8 +97,9 @@ class ChatResponse(BaseModel):
 def health() -> dict:
     return {
         "status": "ok",
+        "backend": CONFIG.backend,
         "provider": CONFIG.llm_provider,
-        "index_loaded": state.index is not None,
+        "index_loaded": state.retriever is not None,
         "pdf_path": state.pdf_path,
         "active_sessions": len(state.sessions),
     }
@@ -109,23 +111,24 @@ def ingest(req: IngestRequest) -> IngestResponse:
         _load_index(req.pdf_path)
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    assert state.index is not None
+    assert state.retriever is not None
+    chunks = state.retriever.all_chunks()
     return IngestResponse(
         pdf_path=req.pdf_path,
-        chunks=len(state.index.chunks),
-        pages=len(set(c.page for c in state.index.chunks)),
+        chunks=len(chunks),
+        pages=len(set(c.page for c in chunks)),
     )
 
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
-    if state.index is None:
+    if state.retriever is None:
         raise HTTPException(status_code=409, detail="No document indexed. POST /ingest first.")
 
     session_id = req.session_id or uuid.uuid4().hex
     agent = state.sessions.get(session_id)
     if agent is None:
-        agent = RAGAgent(index=state.index, config=CONFIG)
+        agent = new_agent(state.retriever, CONFIG)
         state.sessions[session_id] = agent
 
     try:
