@@ -155,6 +155,13 @@ and a documented GCP stub.
    the JD's **LangGraph** requirement and adds an inspectable, guardrail-friendly topology.
 6. **Shared grounding** (`src/grounding.py`) — the citation-validation/refusal logic is factored out
    so the Phase 1 agent and the graph use one implementation.
+7. **Governance layer** (`src/governance/`, `src/observability/`) — guardrails + **Model Armor**
+   (prompt-injection screen + PII redaction), **data-residency** enforcement (`strict` = local-only),
+   **lineage** (Dataplex-style), **tracing/metrics/logging** (Cloud Trace/Monitoring/Logging-style),
+   all wired into the graph. Full map in **[GOVERNANCE.md](GOVERNANCE.md)**.
+8. **Multi-method visual parsing** (`src/providers/parsers.py`) — pymupdf/pdfplumber/docling/OCR/VLM
+   behind the `DocumentParser` seam, benchmarked in **[PARSING.md](PARSING.md)** (pdfplumber best
+   for numeric locality; docling surprisingly lost the figures on these infographic slides).
 
 **Backend switch is literally one env var:**
 ```bash

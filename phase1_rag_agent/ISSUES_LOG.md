@@ -214,3 +214,56 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - Confirmed `StateGraph` compiles and runs (trivial graph + the real 4-node RAG graph). No proto
   issues — LangGraph core doesn't touch the broken google-proto paths.
 - **Status:** ✅ Verified.
+
+---
+
+# ===== PHASE 2+ (governance, safety, observability, multi-parser) =====
+
+## 9. Git hygiene
+
+### 9.1 ✅ Removed Claude co-author trailer from all commits (user request)
+- **Ask:** user did not want `Co-Authored-By: Claude …` on commits.
+- **Action:** rewrote all 3 branches with `git filter-branch --msg-filter` (a Python script stripping
+  the trailer + trailing blank lines), removed `refs/original/` backups, force-pushed `main`,
+  `phase-1-local-rag`, `phase-2-gcp-local`. Verified author/committer identity stays the user's and
+  0 trailers remain. Won't add it going forward.
+- **Status:** ✅ Resolved.
+
+## 10. Governance / safety / observability (Phase 2+)
+
+### 10.1 ℹ️ Built the full GCP-parity governance layer locally
+- Implemented, each mapping 1:1 to a GCP service (documented in GOVERNANCE.md):
+  guardrails + **Model Armor** (injection screen + PII redaction), **data residency** enforcement
+  (strict = local-only), **lineage** (Dataplex-style JSONL), **tracing** (Cloud Trace-style per-stage
+  spans + latency), **metrics** (Cloud Monitoring-style), structured **logging** (Cloud Logging-style).
+- Integrated into the LangGraph graph as `input_guard`/`output_guard` nodes + per-node trace spans +
+  a `finalize` node (lineage/metrics/log). API surfaces per-stage `latency_ms`, `trace_id`,
+  `guard_findings`; added `GET /metrics`.
+- **Verified:** injection → blocked pre-LLM; normal query → grounded + lineage recorded; residency
+  strict blocks gemini; PII redacted. 10 governance unit tests green (27 offline tests total).
+- **Status:** ℹ️ Implemented + tested.
+
+### 10.2 🔴 `unstructured` PDF parser needs heavy extra deps
+- `unstructured.partition.pdf` import fails: first `pi_heif` (installed), then `unstructured_inference`
+  (pulls detectron2-class layout models — heavy). Deferred rather than bloat the env.
+- **Workaround:** compared 5 other methods instead (PyMuPDF, pdfplumber, docling, EasyOCR, moondream
+  VLM). `unstructured` documented as an optional Phase-3/Document-AI-adjacent path.
+- **Status:** 🔴 Deferred (documented).
+
+## 11. Visual-PDF parsing comparison (Phase 2+)
+
+### 11.1 ℹ️ Benchmarked 5 methods — pdfplumber won, docling surprisingly lost the numbers
+- Tried **pymupdf, pdfplumber, docling, easyocr, moondream-VLM** on the earnings deck; scored on
+  whether "Total Income" ends up next to its value (44,281 / 49,263). Full table in PARSING.md.
+- **Findings:**
+  - `pdfplumber` — only full-doc method keeping label↔number adjacent (13 s). **Best here.**
+  - `pymupdf` — has the numbers but not adjacent (the Phase 1 limitation, quantified).
+  - `docling` — **223 s and LOST 44,281/49,263 entirely.** Its table/layout model expects real
+    tables; these infographic slides (numbers as positioned text) defeated it. "Fancier ≠ better."
+  - `easyocr` — render→OCR recovers numbers + adjacency (visual read) but per-page slow; right for
+    **scanned** docs, overkill here.
+  - `moondream VLM` — got the *labels* but **not the numbers** (69 s/page). A 1.7B VLM is too small
+    for dense financial figures; would need Gemini-vision or a 7B+ VLM.
+- **Action:** added `PARSER=pymupdf|pdfplumber|docling|easyocr|vlm` env selection (default pymupdf;
+  pdfplumber recommended for numeric locality). Heavy deps isolated in `requirements-parsers.txt`.
+- **Status:** ℹ️ Explored, documented, wired.

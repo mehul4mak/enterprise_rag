@@ -58,6 +58,8 @@ cost analysis and recommendation.
 | C) Grounded answers with citations `[p13]` / `[p13:c42]` + "Not found" refusal | `src/agent.py`, `src/prompts.py` |
 | D) Retrieval visibility (top-k snippets + scores) | `main.py :debug`, `src/retriever.py` |
 | Bonus: Hybrid retrieval (BM25 + vectors) + reranking | `src/retriever.py` |
+| Phase 2: governance (guardrails, Model Armor, residency, lineage, tracing, metrics) | `src/governance/`, `src/observability/`, [GOVERNANCE.md](GOVERNANCE.md) |
+| Phase 2: multi-method visual parsing (pymupdf/pdfplumber/docling/OCR/VLM) | `src/providers/parsers.py`, [PARSING.md](PARSING.md) |
 
 ---
 
