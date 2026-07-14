@@ -49,12 +49,17 @@ class Config:
     # data residency: off | regional | strict  (strict = local-only, blocks external LLM egress)
     data_residency: str = os.getenv("DATA_RESIDENCY", "off").lower()
 
-    # --- Phase 3 GCP settings (stubs; consumed by src/providers/gcp.py) ---
+    # --- Phase 3 GCP settings (consumed by src/providers/gcp.py) ---
     gcp_project: str = os.getenv("GCP_PROJECT", "")
-    gcp_location: str = os.getenv("GCP_LOCATION", "us-central1")
+    gcp_location: str = os.getenv("GCP_LOCATION", "asia-south1")  # Mumbai (India-sovereign)
+    docai_location: str = os.getenv("DOCAI_LOCATION", "us")  # Document AI multi-region: us | eu
     docai_processor_id: str = os.getenv("DOCAI_PROCESSOR_ID", "")
+    vertex_embedding_model: str = os.getenv("VERTEX_EMBEDDING_MODEL", "text-embedding-005")
+    vertex_ranking_model: str = os.getenv("VERTEX_RANKING_MODEL", "semantic-ranker-default@latest")
+    vertex_gemini_model: str = os.getenv("VERTEX_GEMINI_MODEL", "gemini-2.0-flash-001")
     vector_index_id: str = os.getenv("VECTOR_INDEX_ID", "")
     vector_endpoint_id: str = os.getenv("VECTOR_ENDPOINT_ID", "")
+    vector_deployed_index_id: str = os.getenv("VECTOR_DEPLOYED_INDEX_ID", "")
 
 
 CONFIG = Config()
