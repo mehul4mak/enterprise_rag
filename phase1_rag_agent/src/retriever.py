@@ -59,7 +59,11 @@ def _reciprocal_rank_fusion(
 
 
 def retrieve(
-    query: str, index: HybridIndex, config: Config, use_reranker: bool = True
+    query: str,
+    index: HybridIndex,
+    config: Config,
+    use_reranker: bool = True,
+    top_k: int | None = None,
 ) -> list[RetrievedChunk]:
     dense = _dense_search(query, index, config.top_k_dense, config)
     sparse = _sparse_search(query, index, config.top_k_sparse)
@@ -88,4 +92,4 @@ def retrieve(
             r.rerank_score = float(s)
         results.sort(key=lambda r: r.rerank_score, reverse=True)
 
-    return results[: config.top_k_final]
+    return results[: (top_k or config.top_k_final)]

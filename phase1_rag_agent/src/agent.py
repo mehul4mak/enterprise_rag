@@ -1,9 +1,9 @@
 """Conversational RAG agent: multi-turn, grounded, cited, with refusal logic."""
 
-import re
 from dataclasses import dataclass, field
 
 from .config import Config
+from .grounding import NOT_FOUND, postprocess_answer
 from .index_store import HybridIndex
 from .llm import generate
 from .prompts import (
@@ -14,8 +14,7 @@ from .prompts import (
 )
 from .retriever import RetrievedChunk, retrieve
 
-NOT_FOUND = "Not found in the document."
-_CITATION_RE = re.compile(r"\[p\d+(?::c\d+)?\]")
+__all__ = ["NOT_FOUND", "Turn", "RAGAgent"]
 
 
 @dataclass
@@ -46,30 +45,8 @@ class RAGAgent:
             return question
         return rewritten
 
-    def _valid_citations(self, retrieved: list[RetrievedChunk]) -> set[str]:
-        valid = set()
-        for r in retrieved:
-            valid.add(f"[p{r.chunk.page}:{r.chunk.chunk_id}]")
-            valid.add(f"[p{r.chunk.page}]")
-        return valid
-
     def _postprocess(self, answer: str, retrieved: list[RetrievedChunk]) -> str:
-        """Enforce grounding: an answer must either be the refusal or carry a valid citation."""
-        answer = answer.strip()
-        if answer.lower().startswith("not found"):
-            return NOT_FOUND
-
-        cited = _CITATION_RE.findall(answer)
-        if not cited:
-            # Model gave prose with no citation → treat as ungrounded.
-            return NOT_FOUND
-
-        valid = self._valid_citations(retrieved)
-        # If none of the emitted citations correspond to retrieved chunks, it's hallucinated.
-        if not any(c in valid for c in cited):
-            return NOT_FOUND
-
-        return answer
+        return postprocess_answer(answer, retrieved)
 
     def ask(self, question: str) -> Turn:
         search_query = self._condense(question)
@@ -78,7 +55,7 @@ class RAGAgent:
         context_blocks = [f"{r.chunk.citation} {r.chunk.text}" for r in retrieved]
         prompt = build_qa_prompt(question, context_blocks)
         raw = generate(prompt, SYSTEM_GROUNDED, self.config)
-        answer = self._postprocess(raw, retrieved)
+        answer = postprocess_answer(raw, retrieved)
 
         turn = Turn(question=question, answer=answer, retrieved=retrieved)
         self.history.append(turn)

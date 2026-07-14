@@ -38,7 +38,8 @@ def _cache_key(pdf_path: str, config: Config) -> str:
     return h.hexdigest()[:16]
 
 
-def _build(chunks: list[Chunk], config: Config, source_pdf: str) -> HybridIndex:
+def build_from_chunks(chunks: list[Chunk], config: Config, source_pdf: str = "") -> HybridIndex:
+    """Build an in-memory hybrid index directly from chunks (used by the provider layer)."""
     texts = [c.text for c in chunks]
     vectors = embed_texts(texts, config.embedding_model)
     dim = vectors.shape[1]
@@ -46,6 +47,10 @@ def _build(chunks: list[Chunk], config: Config, source_pdf: str) -> HybridIndex:
     faiss_index.add(vectors)
     bm25 = BM25Okapi([tokenize(t) for t in texts])
     return HybridIndex(chunks=chunks, faiss_index=faiss_index, bm25=bm25, source_pdf=source_pdf)
+
+
+# Backwards-compatible alias (internal callers).
+_build = build_from_chunks
 
 
 def _save(index: HybridIndex, cache_dir: Path) -> None:
