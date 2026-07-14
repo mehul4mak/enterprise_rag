@@ -22,6 +22,10 @@ class Turn:
     question: str
     answer: str
     retrieved: list[RetrievedChunk]
+    # Optional governance/observability metadata (populated by the LangGraph agent).
+    trace: dict | None = None
+    guard_findings: list | None = None
+    blocked: bool = False
 
 
 @dataclass
