@@ -38,5 +38,15 @@ class Config:
 
     max_history_turns: int = 6
 
+    # --- Phase 2: backend selection (local | gcp) ---
+    backend: str = os.getenv("BACKEND", "local").lower()
+
+    # --- Phase 3 GCP settings (stubs; consumed by src/providers/gcp.py) ---
+    gcp_project: str = os.getenv("GCP_PROJECT", "")
+    gcp_location: str = os.getenv("GCP_LOCATION", "us-central1")
+    docai_processor_id: str = os.getenv("DOCAI_PROCESSOR_ID", "")
+    vector_index_id: str = os.getenv("VECTOR_INDEX_ID", "")
+    vector_endpoint_id: str = os.getenv("VECTOR_ENDPOINT_ID", "")
+
 
 CONFIG = Config()
