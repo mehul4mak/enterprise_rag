@@ -99,3 +99,61 @@ Both negative controls (`ceo_email`, and a new `share_price` market-data questio
 - **A — fine-tuning / multi-LoRA**: the harness is the "did the new adapter actually help?" judge,
   and the per-question records become training/preference data.
 - **C — PII vault**: eval also guards against a redaction change breaking answers.
+
+---
+
+## Phase 4B — Cost & Latency Optimization (this step)
+
+### The idea in one line
+Now that we can *measure* quality (4A), make the system **cheaper and faster** — and use the eval
+harness to prove we didn't break anything doing it.
+
+### Concept 1 — you can't optimize what you can't see (cost instrumentation)
+We already time each pipeline stage. We added a **cost** number next to the time: for every LLM call
+we estimate input/output **tokens** and multiply by a **price table** to get `cost_usd`. Now each
+`/chat` response and the `/metrics` dashboard show what a query actually costs (~**$0.00013** for one
+grounded answer here).
+
+> Lesson: cost is just another metric. Put it on the same trace/span as latency and optimization
+> becomes a data-driven decision, not a guess.
+
+### Concept 2 — the semantic cache (the big win)
+If someone asks a question we've already answered for this document, don't pay to answer it again.
+We embed the query and, if it's within a cosine threshold of a past query, return the **cached
+answer** — skipping retrieval and the LLM entirely.
+
+"**Semantic**" is the key word: it's not exact-string matching. A paraphrase
+("...income **for** H1-26" vs "...**in** H1-26", cosine 0.9935) still hits.
+
+**Measured:** a cross-session repeat went from **8.05 s → 0.13 s (≈60×) and $0.00013 → $0**.
+
+Two correctness rules that matter:
+- **Per-document** cache (answers never leak between documents).
+- Only **standalone** (no chat-history) questions are cached — a follow-up like "break that down"
+  depends on history, so it must not be served from a query-only cache. The payoff is therefore
+  **cross-session** (many users asking the same FAQ hit one shared cache).
+
+> Lesson: caching an LLM system is mostly a *correctness* problem, not a storage one. Decide exactly
+> when a cached answer is *safe* to reuse (same doc, no conversational context) before you cache.
+
+### Honest calibration finding
+My first test reused **one** chat session, so every question after the first had history → the cache
+(correctly) refused to serve them, and it looked broken. It wasn't — I was testing the wrong scenario.
+Re-testing with two sessions showed the 60× win. Also, the 0.97 threshold is deliberately strict:
+close paraphrases hit, looser rewordings correctly miss and regenerate.
+
+### How to run
+```bash
+SEMANTIC_CACHE=on python main.py --pdf data/earnings_presentation_q2fy26.pdf
+# ask the same question in two runs → second is instant + free
+```
+
+### Files
+- `src/observability/cost.py` — token/price estimation.
+- `src/optimize/semantic_cache.py` — the per-document semantic cache.
+- graph wiring in `src/graph.py` (cost on spans; cache in `RAGGraphAgent.ask`).
+- Full write-up + numbers: [`../OPTIMIZATION.md`](../OPTIMIZATION.md).
+
+### What's next
+Model tiering (cheap model for query-rewriting), prompt compression, adaptive top-k — each guarded by
+the eval harness. Then Phase 4C (PII dual-store vault) and 4A-adapters (multi-LoRA fine-tuning).

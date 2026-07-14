@@ -320,3 +320,34 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - Plain-language walkthrough of each phase (what/why/lesson) + a teaching section on the eval
   metrics and LLM-as-judge. Complements ISSUES_LOG (audit) and REPORT (design).
 - **Status:** ℹ️ Ongoing.
+
+---
+
+# ===== PHASE 4B (cost & latency optimization) =====
+
+## 15. Optimization
+
+### 15.1 ✅ Cost instrumentation + semantic answer cache
+- Added per-stage **token/cost estimation** (`src/observability/cost.py`) on LLM spans + metrics;
+  `/chat` returns `cost_usd`, `/metrics` aggregates tokens/cost. One grounded answer ≈ $0.00013.
+- Added a **semantic answer cache** (`src/optimize/semantic_cache.py`, `SEMANTIC_CACHE=on`): embed
+  query → cosine ≥ threshold → return cached answer, skipping retrieve+generate.
+- **Measured (cross-session):** 8.05s→**0.13s (≈60×)**, cost→**$0**, and it matched a *paraphrase*
+  (cosine 0.9935 > 0.97 threshold). Same answer verified.
+- **8 optimize unit tests** added. 44 offline tests total, ruff clean.
+- **Status:** ✅ Working.
+
+### 15.2 ⚠️→ℹ️ Cache looked broken — I tested the wrong scenario
+- First test used ONE agent: after Q1, the agent has history, so the "only cache no-history
+  questions" rule (correct — don't cache follow-ups) disabled caching for Q2+. Looked like a bug.
+- **Not a bug:** the cache is **cross-session** by design (per-document, process-global). Re-tested
+  with two agents/sessions → 60× hit. Documented the single-session limitation in OPTIMIZATION.md.
+- **Lesson:** caching an LLM app is a *correctness* problem — define when reuse is safe (same doc, no
+  conversational context) before caching.
+- **Status:** ℹ️ Clarified + documented.
+
+### 15.3 ℹ️ No-regression argument (didn't re-run full eval)
+- Cache returns byte-identical answers; cost tracking is passive. The 7 eval Qs are distinct → all
+  cache misses → the exact Phase-4A path (7/7 gates). Skipped re-running eval to spare the Gemini
+  free tier; reasoning documented instead. The harness stays the gate for future active optimizations.
+- **Status:** ℹ️ Decision recorded.
