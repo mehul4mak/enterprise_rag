@@ -2,8 +2,14 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref so rapid pushes don't stack up.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 defaults:
   run:

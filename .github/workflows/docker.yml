@@ -3,10 +3,16 @@ name: Docker
 # Build (and optionally push) the container image. Runs on pushes to the phase-1 line
 # and on version tags. Push to GHCR only happens on tags, using the built-in GITHUB_TOKEN.
 
+# Heavy build (pre-downloads ML models) — only on release tags or manual trigger,
+# never on every branch push.
 on:
   push:
-    branches: ["phase-1-local-rag", "phase-2-gcp-local", "main"]
     tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
