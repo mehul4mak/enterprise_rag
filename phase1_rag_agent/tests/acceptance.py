@@ -8,9 +8,9 @@ import argparse
 import sys
 import time
 
-from src.agent import NOT_FOUND, RAGAgent
 from src.config import CONFIG
-from src.index_store import get_or_build_index
+from src.grounding import NOT_FOUND
+from src.pipeline import build_agent
 
 DEFAULT_PDF = "data/earnings_presentation_q2fy26.pdf"
 
@@ -26,9 +26,11 @@ def run():
     parser.add_argument("--pdf", default=DEFAULT_PDF)
     args = parser.parse_args()
 
-    print(f"[acceptance] provider={CONFIG.llm_provider} pdf={args.pdf}")
-    index = get_or_build_index(args.pdf, CONFIG)
-    agent = RAGAgent(index=index, config=CONFIG)
+    print(
+        f"[acceptance] backend={CONFIG.backend} provider={CONFIG.llm_provider} "
+        f"parser={CONFIG.parser} guardrails={CONFIG.guardrails_enabled} pdf={args.pdf}"
+    )
+    agent = build_agent(args.pdf, CONFIG)  # governed LangGraph pipeline
 
     # Space out calls on hosted free tiers to respect per-minute rate limits.
     spacing = 5.0 if CONFIG.llm_provider == "gemini" else 0.0
