@@ -95,6 +95,8 @@ class ChatResponse(BaseModel):
     latency_ms: dict[str, float] = {}
     total_latency_ms: float = 0.0
     trace_id: str | None = None
+    cost_usd: float = 0.0
+    cache_hit: bool = False
 
 
 # ---------- routes ----------
@@ -159,6 +161,10 @@ def chat(req: ChatRequest) -> ChatResponse:
         latency_ms={sp["name"]: sp["latency_ms"] for sp in trace.get("spans", [])},
         total_latency_ms=trace.get("total_latency_ms", 0.0),
         trace_id=trace.get("trace_id"),
+        cost_usd=round(
+            sum(sp.get("attributes", {}).get("cost_usd", 0.0) for sp in trace.get("spans", [])), 8
+        ),
+        cache_hit=trace.get("cache_hit", False),
     )
 
 

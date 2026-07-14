@@ -30,4 +30,4 @@ jobs:
 
       - name: Run unit tests
         # Excludes tests/acceptance.py (needs an LLM backend); unit tests are offline.
-        run: pytest tests/test_chunking.py tests/test_grounding.py tests/test_api.py tests/test_providers.py tests/test_governance.py tests/test_gcp.py tests/test_eval.py
+        run: pytest tests/test_chunking.py tests/test_grounding.py tests/test_api.py tests/test_providers.py tests/test_governance.py tests/test_gcp.py tests/test_eval.py tests/test_optimize.py
