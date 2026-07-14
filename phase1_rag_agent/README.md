@@ -8,6 +8,11 @@ questions **only from retrieved context**, with **page + chunk citations** and a
 Built for the Adani Gen-AI assessment. Runs **fully offline by default** (local Ollama), and
 switches to Gemini / OpenAI / Anthropic with a one-line `.env` change.
 
+> **Branches:** `phase-1-local-rag` = the local RAG agent + hosting/CI. `phase-2-gcp-local`
+> (this branch) = same behaviour re-architected as a **LangGraph** agent behind **provider
+> interfaces** (local ↔ GCP is a `BACKEND=` swap). `phase-3-gcp` (planned) = the Vertex/Document AI
+> implementations. See [REPORT.md](REPORT.md) §7 and the architecture below.
+
 ---
 
 ## Quickstart
@@ -137,7 +142,15 @@ phase1_rag_agent/
 │   ├── retriever.py            # RRF fusion + cross-encoder rerank
 │   ├── llm.py                  # ollama/openai/anthropic/gemini backends
 │   ├── prompts.py              # grounding + condensation prompts
-│   ├── agent.py                # multi-turn orchestration + refusal logic
+│   ├── agent.py                # Phase 1 multi-turn orchestration (hand-rolled)
+│   ├── grounding.py            # shared citation-validation / refusal logic
+│   ├── graph.py                # Phase 2 LangGraph agent (condense→retrieve→generate→validate)
+│   ├── pipeline.py             # assemble agent from a PDF via the provider factory
+│   ├── providers/              # Phase 2 provider abstraction (local ↔ GCP swap)
+│   │   ├── base.py             #   interfaces: DocumentParser, Embedder, Retriever, LLMProvider
+│   │   ├── local.py            #   local impls (wrap Phase 1 components)
+│   │   ├── gcp.py              #   Vertex / Document AI stubs (Phase 3 target)
+│   │   └── factory.py          #   selects impls from BACKEND=local|gcp
 │   └── api.py                  # FastAPI service (hosting)
 └── tests/
     ├── test_chunking.py        # chunking unit tests

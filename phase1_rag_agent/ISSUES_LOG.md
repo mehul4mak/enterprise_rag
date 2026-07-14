@@ -166,3 +166,51 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - **A:** `44,281 ₹ crore [p22:c35]` — correct value, correct period (H1-26 not Q2), valid citation to a retrieved chunk.
 - **Why notable:** I expected a 2B model to fumble numeric extraction from noisy slide text. It didn't, because retrieval+rerank handed it the *right* chunk and the strict prompt forced verbatim copying. This validates the "retrieval does the heavy lifting, LLM just extracts+cites" design — small model is viable for the pipeline proof.
 - **Status:** ✅ Pass.
+
+---
+
+# ===== PHASE 2 (GCP-shaped, running locally) =====
+
+## 8. Framework / dependency issues (Phase 2)
+
+### 8.1 🔴→🔶 `langchain-google-genai` / `-vertexai` won't import (protobuf skew)
+- **Symptom:** `import langchain_google_genai` (and `langchain_google_vertexai`) crash with
+  `AttributeError: 'google.protobuf.pyext._message.FieldDescriptor' object has no attribute 'is_repeated'`.
+- **Root cause:** Same defect as Phase 1 §6.6. Installed **protobuf 6.33.5** has a C-extension /
+  pure-Python skew — `json_format.py` calls `field.is_repeated` but the compiled `_message`
+  FieldDescriptor doesn't expose it. Any code path that serializes a proto to dict at import time
+  (which these LangChain-Google packages do) blows up.
+- **Why I did NOT just fix protobuf:** this is a **shared machine** running the user's other
+  services (odoo, open-webui, a local coding-agent) and many `google-cloud-*` libs pin protobuf
+  ranges. Downgrading/upgrading protobuf globally risks breaking unrelated software. Not my call to
+  make on a shared env.
+- **Workaround (chosen):** Build Phase 2 on **LangGraph + my own thin provider wrappers** over the
+  *working* raw `google-generativeai` `generate_content` path (that path never hits the broken
+  json_format code — proven in Phase 1). No dependency on the LangChain-Google packages.
+- **Phase 3 note:** the cloud image will pin a matched protobuf (e.g. the version
+  `google-cloud-aiplatform` requests), at which point `langchain-google-vertexai` becomes usable if
+  desired. Documented in `src/providers/gcp.py`.
+- **Status:** 🔶 Worked around (LangGraph without langchain-google); root cause documented.
+
+### 8.2 ℹ️ Architecture decision: interfaces + factory, not a rewrite
+- **Goal of Phase 2** ("GCP-shaped but local"): make Phase 3 a *config swap*, not a rewrite.
+- **What I built:**
+  - `src/providers/base.py` — 4 interfaces (DocumentParser, Embedder, Retriever, LLMProvider),
+    each mapping 1:1 to a GCP managed service.
+  - `src/providers/local.py` — local impls wrapping the proven Phase 1 code.
+  - `src/providers/gcp.py` — Vertex/Document AI **stubs** with the exact SDK entry points sketched;
+    they raise a clear "Phase-3, needs GCP creds" error until wired.
+  - `src/providers/factory.py` — selects impls from `BACKEND=local|gcp`.
+  - `src/graph.py` — the agent rebuilt as a **LangGraph StateGraph** (condense→retrieve→generate→
+    validate) depending only on the interfaces.
+  - `src/grounding.py` — extracted the citation-validation/refusal logic so Phase 1 agent and the
+    graph share ONE implementation (DRY).
+- **Verification:** local backend gives identical grounded answers; multi-turn follow-up condensed
+  and retrieved `[p16:c26]` (Pax 45.1→46.0, Cargo 5.5→5.7) through the graph. `BACKEND=gcp` builds
+  the stubs and raises `NotImplementedError` as designed (unit-tested).
+- **Status:** ℹ️ Decision recorded; implemented + tested.
+
+### 8.3 ✅ LangGraph 1.0.1 works cleanly
+- Confirmed `StateGraph` compiles and runs (trivial graph + the real 4-node RAG graph). No proto
+  issues — LangGraph core doesn't touch the broken google-proto paths.
+- **Status:** ✅ Verified.

@@ -135,6 +135,52 @@ multi-agent extensibility the enterprise role expects.
 
 ---
 
+## 7. Phase 2 — implemented on branch `phase-2-gcp-local` ("GCP-shaped, runs locally")
+
+Phase 2 restructures the code so Phase 3 (real GCP) becomes a **config flip**, not a rewrite. It
+still runs entirely locally, but every cloud seam is now an explicit interface with a local impl
+and a documented GCP stub.
+
+**What changed vs Phase 1:**
+
+1. **Provider interfaces** (`src/providers/base.py`) — four ABCs, each mapping 1:1 to a GCP service:
+   `DocumentParser`→Document AI, `Embedder`→Vertex embeddings, `Retriever`→Vertex Vector Search +
+   Ranking API, `LLMProvider`→Gemini on Vertex.
+2. **Local impls** (`src/providers/local.py`) — thin wrappers over the proven Phase 1 components.
+3. **GCP stubs** (`src/providers/gcp.py`) — the Phase 3 target: each method has the exact Vertex/
+   Document AI SDK call sketched and raises a clear "needs GCP creds" error until wired.
+4. **Factory** (`src/providers/factory.py`) — picks impls from `BACKEND=local|gcp`.
+5. **LangGraph agent** (`src/graph.py`) — the agent is now an explicit `StateGraph`
+   (condense → retrieve → generate → validate), depending only on the interfaces. This satisfies
+   the JD's **LangGraph** requirement and adds an inspectable, guardrail-friendly topology.
+6. **Shared grounding** (`src/grounding.py`) — the citation-validation/refusal logic is factored out
+   so the Phase 1 agent and the graph use one implementation.
+
+**Backend switch is literally one env var:**
+```bash
+BACKEND=local   # Phase 1 & 2 — runs anywhere (default)
+BACKEND=gcp     # Phase 3 — Document AI + Vertex Vector Search/Ranking + Gemini-on-Vertex
+```
+
+**Honest constraint (see [ISSUES_LOG.md](ISSUES_LOG.md) §8.1):** this box's `protobuf` (6.33.5) has a
+C-extension skew that breaks importing `langchain-google-vertexai`/`-genai`. Rather than downgrade
+protobuf on a shared machine, Phase 2 uses **LangGraph + raw-SDK provider wrappers** (the working
+Gemini path). Phase 3's cloud image pins a matched protobuf, after which the LangChain-Google
+integrations become available if desired.
+
+**Verified:** local backend returns identical grounded answers through the graph; multi-turn
+follow-up condensed and retrieved `[p16:c26]` (Pax 45.1→46.0 Mn, Cargo 5.5→5.7 L-MT); `BACKEND=gcp`
+constructs the stubs and raises `NotImplementedError` as designed (unit-tested in
+`tests/test_providers.py`).
+
+### Phase 3 (next branch) — what's left
+Implement the `gcp.py` stub bodies against a real GCP project, add ADC auth + a sovereign-region
+`vertexai.init`, provision a Vector Search index + Document AI processor, and deploy the container
+to Cloud Run. Optionally rebuild the graph in **Google ADK** (the JD's first-named framework) — the
+provider interfaces are unchanged.
+
+---
+
 ## Appendix — raw acceptance output
 
 Full verbatim transcript (answers, per-question latency, and retrieved citations) is committed at
