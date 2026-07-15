@@ -1,6 +1,9 @@
 """Hybrid retrieval: dense (FAISS) + sparse (BM25) fused via Reciprocal Rank Fusion,
-then refined with a cross-encoder reranker."""
+then refined with a cross-encoder reranker — plus a structured (metadata) lookup so positional
+questions like "what is on page 3" work, which neither text retriever can serve (the page number
+is metadata, not a token in the chunk text)."""
 
+import re
 from dataclasses import dataclass
 
 from sentence_transformers import CrossEncoder
@@ -11,6 +14,9 @@ from .index_store import HybridIndex, tokenize
 from .ingest import Chunk
 
 _reranker_cache: dict[str, CrossEncoder] = {}
+
+# Positional references: "page 3", "on page 12", "slide 5", "pg. 7".
+_PAGE_RE = re.compile(r"\b(?:page|slide|pg)\s*\.?\s*(\d+)\b")
 
 
 def _get_reranker(model_name: str) -> CrossEncoder:
@@ -58,6 +64,20 @@ def _reciprocal_rank_fusion(
     return fused
 
 
+def structured_lookup(query: str, index: HybridIndex) -> list[int]:
+    """Detect a positional reference (e.g. "page 3") and return that page's chunk indices.
+
+    This is *structured* retrieval: it queries the `page` metadata field that FAISS (meaning) and
+    BM25 (content tokens) can't — because the page number isn't text inside the chunk. Returns [] if
+    the question has no positional reference or the page doesn't exist.
+    """
+    m = _PAGE_RE.search(query.lower())
+    if not m:
+        return []
+    page = int(m.group(1))
+    return [i for i, c in enumerate(index.chunks) if c.page == page]
+
+
 def retrieve(
     query: str, index: HybridIndex, config: Config, use_reranker: bool = True
 ) -> list[RetrievedChunk]:
@@ -87,5 +107,18 @@ def retrieve(
         for r, s in zip(results, rerank_scores, strict=False):
             r.rerank_score = float(s)
         results.sort(key=lambda r: r.rerank_score, reverse=True)
+
+    # Structured retrieval: if the question names a page/slide, pin that page's chunks to the front
+    # (guaranteed inclusion — text search can't find them, and the reranker would bury them).
+    structured_idxs = structured_lookup(query, index)
+    if structured_idxs:
+        pinned = [
+            RetrievedChunk(
+                chunk=index.chunks[i], dense_score=None, sparse_score=None, fused_score=1.0
+            )
+            for i in structured_idxs
+        ]
+        pinned_ids = {p.chunk.chunk_id for p in pinned}
+        results = pinned + [r for r in results if r.chunk.chunk_id not in pinned_ids]
 
     return results[: config.top_k_final]
