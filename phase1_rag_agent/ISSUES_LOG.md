@@ -377,3 +377,28 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
   cache misses → the exact Phase-4A path (7/7 gates). Skipped re-running eval to spare the Gemini
   free tier; reasoning documented instead. The harness stays the gate for future active optimizations.
 - **Status:** ℹ️ Decision recorded.
+
+---
+
+# ===== PHASE 6 (final: Socratic review + consolidation) =====
+
+## 16. Review findings & consolidation
+
+### 16.1 ✅ Reinstated dead disk-cache as a live feature (minimality)
+- Review found `index_store.get_or_build_index` (PDF-bytes disk cache) had **no callers** after the
+  Phase-2 provider refactor. Rather than delete, exposed `get_or_build_from_chunks` (keyed on
+  chunks + embedding model) and wired it into `LocalHybridRetriever.index()`.
+- **Measured:** warm reload 6.59s → 0.009s (**696×**). Dead code → real optimization. Tests green.
+- **Status:** ✅ Fixed.
+
+### 16.2 ℹ️ Documented honest limitations (not over-engineered)
+- `AppState.sessions` and `SemanticCache` grow unbounded (in-memory demo). Flagged in
+  `docs/SOCRATIC_REVIEW.md` §3 as known; prod swaps in Redis/Memorystore + LRU/TTL (interfaces
+  already support it). Chose not to bolt on eviction for a take-home.
+- Cost attribution uses `active_model` (provider-level) — an estimate; flagged.
+- **Status:** ℹ️ Documented.
+
+### 16.3 ✅ Consolidated to `phase-6-final` + doc index
+- Merged phase-4b-optimization + phase-5-graphrag (2 doc conflicts, resolved keeping both sections
+  chronologically). Added `INDEX.md` (navigation), `docs/SOCRATIC_REVIEW.md`. 49 offline tests pass.
+- **Status:** ✅ Done.

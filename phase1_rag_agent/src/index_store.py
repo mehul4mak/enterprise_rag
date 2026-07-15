@@ -1,4 +1,10 @@
-"""Hybrid (dense + sparse) retrieval index: build, persist, and reload per-PDF."""
+"""Hybrid (dense + sparse) retrieval index: build once, cache on disk, reload instantly.
+
+The cache is keyed on exactly what determines the index — the chunk texts + chunking params +
+embedding model — so any change to parsing, chunking, or model invalidates it automatically.
+(Phase 1 keyed the cache on the PDF file bytes; keying on chunks is stricter and lets every
+DocumentParser implementation share the same cache machinery.)
+"""
 
 import hashlib
 import json
@@ -11,7 +17,7 @@ from rank_bm25 import BM25Okapi
 
 from .config import CACHE_DIR, Config
 from .embeddings import embed_texts
-from .ingest import Chunk, ingest_pdf
+from .ingest import Chunk
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -28,18 +34,17 @@ class HybridIndex:
     source_pdf: str
 
 
-def _cache_key(pdf_path: str, config: Config) -> str:
+def _cache_key(chunks: list[Chunk], config: Config) -> str:
     h = hashlib.md5()
-    with open(pdf_path, "rb") as f:
-        h.update(f.read())
-    h.update(str(config.chunk_size_chars).encode())
-    h.update(str(config.chunk_overlap_chars).encode())
+    for c in chunks:
+        h.update(f"{c.page}:{c.chunk_id}:".encode())
+        h.update(c.text.encode())
     h.update(config.embedding_model.encode())
     return h.hexdigest()[:16]
 
 
 def build_from_chunks(chunks: list[Chunk], config: Config, source_pdf: str = "") -> HybridIndex:
-    """Build an in-memory hybrid index directly from chunks (used by the provider layer)."""
+    """Build an in-memory hybrid index directly from chunks."""
     texts = [c.text for c in chunks]
     vectors = embed_texts(texts, config.embedding_model)
     dim = vectors.shape[1]
@@ -47,10 +52,6 @@ def build_from_chunks(chunks: list[Chunk], config: Config, source_pdf: str = "")
     faiss_index.add(vectors)
     bm25 = BM25Okapi([tokenize(t) for t in texts])
     return HybridIndex(chunks=chunks, faiss_index=faiss_index, bm25=bm25, source_pdf=source_pdf)
-
-
-# Backwards-compatible alias (internal callers).
-_build = build_from_chunks
 
 
 def _save(index: HybridIndex, cache_dir: Path) -> None:
@@ -77,18 +78,14 @@ def _load(cache_dir: Path) -> HybridIndex | None:
     )
 
 
-def get_or_build_index(pdf_path: str, config: Config, force_reindex: bool = False) -> HybridIndex:
-    key = _cache_key(pdf_path, config)
-    cache_dir = CACHE_DIR / key
-
-    if not force_reindex:
-        cached = _load(cache_dir)
-        if cached is not None:
-            return cached
-
-    chunks = ingest_pdf(pdf_path, config.chunk_size_chars, config.chunk_overlap_chars)
-    if not chunks:
-        raise ValueError(f"No extractable text found in {pdf_path}")
-    index = _build(chunks, config, source_pdf=pdf_path)
+def get_or_build_from_chunks(
+    chunks: list[Chunk], config: Config, source_pdf: str = ""
+) -> HybridIndex:
+    """Disk-cached index build: instant reload when chunks + embedding model are unchanged."""
+    cache_dir = CACHE_DIR / _cache_key(chunks, config)
+    cached = _load(cache_dir)
+    if cached is not None:
+        return cached
+    index = build_from_chunks(chunks, config, source_pdf=source_pdf)
     _save(index, cache_dir)
     return index

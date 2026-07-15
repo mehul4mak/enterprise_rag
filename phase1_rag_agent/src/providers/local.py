@@ -8,7 +8,7 @@ import numpy as np
 
 from ..config import Config
 from ..embeddings import embed_texts, get_embedder
-from ..index_store import HybridIndex, build_from_chunks
+from ..index_store import HybridIndex, get_or_build_from_chunks
 from ..ingest import Chunk, extract_pages
 from ..llm import generate
 from ..retriever import RetrievedChunk, retrieve
@@ -52,7 +52,8 @@ class LocalHybridRetriever(Retriever):
     def index(self, chunks: list[Chunk]) -> None:
         if not chunks:
             raise ValueError("No chunks to index.")
-        self._index = build_from_chunks(chunks, self.config)
+        # Disk-cached: re-running on the same document skips re-embedding.
+        self._index = get_or_build_from_chunks(chunks, self.config)
 
     def retrieve(self, query: str, k: int) -> list[RetrievedChunk]:
         if self._index is None:

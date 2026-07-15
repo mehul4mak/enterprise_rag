@@ -1,4 +1,4 @@
-# Conversational RAG Agent over PDFs (Phase 1)
+# Enterprise RAG — Document-Grounded Conversational Agent
 
 A runnable, document-grounded conversational agent. It ingests a PDF, builds a **hybrid
 (dense + sparse) retrieval index with cross-encoder reranking**, and answers multi-turn
@@ -6,7 +6,12 @@ questions **only from retrieved context**, with **page + chunk citations** and a
 **"Not found in the document."** refusal when the answer isn't supported.
 
 Built for the Adani Gen-AI assessment. Runs **fully offline by default** (local Ollama), and
-switches to Gemini / OpenAI / Anthropic with a one-line `.env` change.
+switches to Gemini / OpenAI / Anthropic with a one-line `.env` change. Grown across six phases from a
+local prototype to a governed, evaluated, GCP-portable platform.
+
+> 🧭 **New here? Start with [INDEX.md](INDEX.md)** — it maps every doc, branch, and module.
+> For the plain-language tour see [docs/LEARNING_LOG.md](docs/LEARNING_LOG.md); for the
+> interviewer-grade self-review see [docs/SOCRATIC_REVIEW.md](docs/SOCRATIC_REVIEW.md).
 
 > **Branches:** `phase-1-local-rag` = local RAG agent + hosting/CI. `phase-2-gcp-local` = same
 > behaviour re-architected as a **LangGraph** agent behind **provider interfaces** + governance

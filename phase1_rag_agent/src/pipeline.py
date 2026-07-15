@@ -1,6 +1,6 @@
 """Phase 2 assembly: build a ready-to-chat graph agent from a PDF, using the selected backend.
 
-This is the Phase 2 analogue of Phase 1's `get_or_build_index` + `RAGAgent`, but everything
+This is the Phase 2 analogue of the Phase 1 index+agent build, but everything
 flows through the provider factory so `BACKEND=local|gcp` picks the implementations.
 """
 
