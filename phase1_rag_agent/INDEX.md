@@ -55,7 +55,7 @@ Each phase is its own branch; **`phase-6-final`** consolidates everything.
 ingest.py          PDF → page-tagged chunks
 embeddings.py      local sentence-transformers
 index_store.py     FAISS + BM25, disk-cached (696× warm reload)
-retriever.py       RRF fusion + cross-encoder rerank
+retriever.py       RRF fusion + cross-encoder rerank + structured page lookup
 grounding.py       citation validation / refusal  (shared, single source of truth)
 prompts.py         grounding + follow-up condensation prompts
 llm.py             ollama / openai / anthropic / gemini backends

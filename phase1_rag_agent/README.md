@@ -64,7 +64,11 @@ cost analysis and recommendation.
 | B) Multi-turn conversational Q&A | `src/agent.py`, `main.py` |
 | C) Grounded answers with citations `[p13]` / `[p13:c42]` + "Not found" refusal | `src/agent.py`, `src/prompts.py` |
 | D) Retrieval visibility (top-k snippets + scores) | `main.py :debug`, `src/retriever.py` |
-| Bonus: Hybrid retrieval (BM25 + vectors) + reranking | `src/retriever.py` |
+| Bonus: Hybrid retrieval (BM25 + vectors) + reranking + **structured page lookup** | `src/retriever.py` |
+
+**Retrieval is three-way:** semantic (FAISS), keyword (BM25), and **structured/metadata** — a
+positional query like *"what is on page 3"* is served by looking up the `page` field directly
+(neither text retriever can, since the page number isn't a word in the chunk).
 | Phase 2: governance (guardrails, Model Armor, residency, lineage, tracing, metrics) | `src/governance/`, `src/observability/`, [GOVERNANCE.md](GOVERNANCE.md) |
 | Phase 2: multi-method visual parsing (pymupdf/pdfplumber/docling/OCR/VLM) | `src/providers/parsers.py`, [PARSING.md](PARSING.md) |
 

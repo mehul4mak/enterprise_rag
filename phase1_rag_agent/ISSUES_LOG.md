@@ -402,3 +402,21 @@ Legend for **Status**: ✅ Resolved · 🔶 Worked around · 🔴 Open · ℹ️
 - Merged phase-4b-optimization + phase-5-graphrag (2 doc conflicts, resolved keeping both sections
   chronologically). Added `INDEX.md` (navigation), `docs/SOCRATIC_REVIEW.md`. 49 offline tests pass.
 - **Status:** ✅ Done.
+
+### 16.4 ✅ Retrieval gap found by user testing: positional questions were refused
+- **Symptom (user-reported):** "what is on page 1" / "show me index" → *"Not found in the document."*
+- **Diagnosed with evidence (no LLM):** reranker top score **−10.5** (vs **+4.27** for a content
+  question) and page-1's chunk never retrieved. Root cause: page 1's BM25 tokens are
+  `['adani','enterprises','limited','earnings','presentation','q2','fy26']` — it contains **neither
+  "page" nor "1"**. The page number is **metadata**, not text, so *neither* FAISS (meaning) nor BM25
+  (content tokens) can serve a positional query. We stored `chunk.page` (for citations) but never
+  *queried* by it — i.e. we had semantic + keyword retrieval but **no structured retrieval**.
+- **Fix:** `structured_lookup()` in `retriever.py` detects "page/slide/pg N" and pins that page's
+  chunks to the front (guaranteed — the reranker would otherwise bury them). Grounding/refusal
+  untouched. Verified end-to-end: *"what is on page 1?"* → "Adani Enterprises Limited Earnings
+  Presentation Q2 FY26 [p1:c1]". No false trigger on "revenue in 2024". 3 unit tests.
+- **Note:** "show me index" still refuses — **correctly**: this deck has no table of contents, so
+  there is nothing to ground an answer in.
+- **Lesson:** "hybrid retrieval" (dense+sparse) is still *text* search. Metadata you store for
+  citations is not searchable unless you build a structured path to it.
+- **Status:** ✅ Fixed on `phase-1-local-rag` and forward-ported to `phase-6-final`.
