@@ -14,9 +14,10 @@ Start here. This maps every document, branch, and module so you can navigate the
 |---|----------|-----------------|
 | 1 | [README.md](README.md) | Quickstart — run it in 3 commands; what maps to the task spec |
 | 2 | [docs/LEARNING_LOG.md](docs/LEARNING_LOG.md) | **Plain-language tour** of every phase (what / why / key lesson) |
-| 3 | [REPORT.md](REPORT.md) | The engineering design + reasoning + acceptance results + GCP migration map |
-| 4 | [docs/SOCRATIC_REVIEW.md](docs/SOCRATIC_REVIEW.md) | Interviewer-grade self-review: findings, honest limits, JD alignment |
-| 5 | [ISSUES_LOG.md](ISSUES_LOG.md) | The full audit trail — **every** bug/decision, including the failures |
+| 3 | [docs/QA_EXPLAINED.md](docs/QA_EXPLAINED.md) | **Q&A** — condensing, prompts.py, models, the two total-income pages, when it refuses, HyDE/contextual, chunking evidence |
+| 4 | [REPORT.md](REPORT.md) | The engineering design + reasoning + acceptance results + GCP migration map |
+| 5 | [docs/SOCRATIC_REVIEW.md](docs/SOCRATIC_REVIEW.md) | Interviewer-grade self-review: findings, honest limits, JD alignment |
+| 6 | [ISSUES_LOG.md](ISSUES_LOG.md) | The full audit trail — **every** bug/decision, including the failures |
 
 ## Deep-dive docs (by topic)
 
@@ -29,6 +30,7 @@ Start here. This maps every document, branch, and module so you can navigate the
 | GCP deploy runbook (Terraform + Cloud Run, asia-south1) | [GCP_SETUP.md](GCP_SETUP.md) |
 | Latency & cost optimization (cost tracking + semantic cache) | [OPTIMIZATION.md](OPTIMIZATION.md) |
 | GraphRAG design + honest hybrid-vs-graph comparison | [docs/GRAPHRAG.md](docs/GRAPHRAG.md) |
+| Retrieval experiments: chunking/embedding sweeps, HyDE, contextual retrieval | [docs/RETRIEVAL_EXPERIMENTS.md](docs/RETRIEVAL_EXPERIMENTS.md) |
 | Phase 4 roadmap (multi-LoRA, PII vault, non-RAG agents) | [PHASE4_PLAN.md](PHASE4_PLAN.md) |
 
 ---

@@ -10,8 +10,10 @@ switches to Gemini / OpenAI / Anthropic with a one-line `.env` change. Grown acr
 local prototype to a governed, evaluated, GCP-portable platform.
 
 > 🧭 **New here? Start with [INDEX.md](INDEX.md)** — it maps every doc, branch, and module.
-> For the plain-language tour see [docs/LEARNING_LOG.md](docs/LEARNING_LOG.md); for the
-> interviewer-grade self-review see [docs/SOCRATIC_REVIEW.md](docs/SOCRATIC_REVIEW.md).
+> For the plain-language tour see [docs/LEARNING_LOG.md](docs/LEARNING_LOG.md); for direct answers on
+> how the pipeline works (condensing, prompts, refusals, chunking evidence) see
+> [docs/QA_EXPLAINED.md](docs/QA_EXPLAINED.md); for the interviewer-grade self-review see
+> [docs/SOCRATIC_REVIEW.md](docs/SOCRATIC_REVIEW.md).
 
 > **Branches:** `phase-1-local-rag` = local RAG agent + hosting/CI. `phase-2-gcp-local` = same
 > behaviour re-architected as a **LangGraph** agent behind **provider interfaces** + governance
