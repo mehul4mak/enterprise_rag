@@ -194,3 +194,61 @@ SEMANTIC_CACHE=on python main.py --pdf data/earnings_presentation_q2fy26.pdf
 ### What's next
 Model tiering (cheap model for query-rewriting), prompt compression, adaptive top-k — each guarded by
 the eval harness. Then Phase 4C (PII dual-store vault) and 4A-adapters (multi-LoRA fine-tuning).
+
+---
+
+## Phase 7 — Retrieval Experiments (measuring what I'd only reasoned about)
+
+### Why this phase exists
+Two fair challenges: *"how do you know that chunking works well — did you try others?"* and *"are you
+doing contextual retrieval or HyDE?"* Honest answers: I picked chunking by **reasoning, not
+measurement**, and I'd done **neither** technique. So I measured.
+
+### The trick that made it cheap
+Scoring an *answer* needs an LLM. Scoring **retrieval** doesn't. Build a **gold set** (question → the
+page that really contains the answer, verified by finding the answer string in the PDF), then measure:
+- **hit@5** — did a gold page make the top-5? (what matters: we hand the LLM 5 chunks)
+- **MRR** — 1/rank of the first gold page (ranking precision)
+
+That's ~15 config sweeps for **zero LLM cost**.
+
+> Lesson: **separate what you can measure for free from what costs money.** Most RAG tuning is a
+> retrieval problem, and retrieval is free to evaluate.
+
+### The three findings that surprised me
+1. **BM25 (keyword) is the workhorse, not embeddings.** Alone it has the *best ranking* (MRR 0.833) —
+   better than the full hybrid+rerank stack (0.708). Dense embeddings alone are weak (MRR 0.347).
+   Makes sense in hindsight: a financial deck is discriminated by exact tokens (`H1-26`, `EBITDA`,
+   `44,281`) — BM25's home turf, embeddings' weakness. The reranker still earns its keep: it's the
+   only config that never misses (**hit@5 = 1.000**).
+2. **My shipped chunking wasn't optimal.** `chunk_size=1000` was validated (1000–1500 = hit@5 1.000;
+   2000 degrades), but my `overlap=150` scored the *worst* in its own row (0.708 vs 0.806 @300).
+   The part I reasoned about held; the part I guessed didn't.
+3. **Contextual retrieval beat HyDE — and it's free.** Prepending `[Context: <doc>, page N]` to each
+   chunk lifted MRR 0.708 → **0.792** with no LLM. HyDE (LLM writes a fake answer, embed *that*) only
+   reached 0.750 *and* costs a call per query — because it improves the **dense** probe, which is the
+   weakest signal here.
+
+> Lesson: **advanced techniques are corpus-dependent.** HyDE is a real technique that helps when
+> embeddings carry the load (prose, contracts). On a keyword-dense deck it barely moves. "Is it
+> state-of-the-art?" is the wrong question; "does it help *this* corpus?" is the right one.
+
+### The honesty caveat
+**n=6 questions.** One question = 0.167 of hit@5; an 0.08 MRR delta is half a rank on one question.
+The robust signals (hit@5 plateau, BM25 > dense) are real; the fine-grained MRR orderings are
+**within noise**. A production decision needs 50–100+ gold questions.
+
+Full numbers + reproduce commands: [`RETRIEVAL_EXPERIMENTS.md`](RETRIEVAL_EXPERIMENTS.md).
+
+### Phase 7 addendum — the result I almost mis-reported
+All three embedding models scored **identically** (1.000 / 0.708) with the full stack. Identical
+numbers are a **bug smell**, so instead of reporting "embedding choice doesn't matter" I isolated
+**dense-only** — and they *do* differ a lot (bge-small 1.000/0.500 vs MiniLM 0.833/0.347). So it
+wasn't a bug: **the cross-encoder reranker washes out the embedding choice**, because with only 63
+chunks half the corpus enters the fusion pool anyway and the reranker decides the final order.
+
+Two lessons:
+- **When a result looks too clean, try to disprove it before you publish it.** A one-line diagnostic
+  turned "suspicious identical numbers" into the most interesting finding of the phase.
+- **The finding is scale-dependent and I said so:** on 63 chunks the reranker dominates; on 63,000 the
+  dense recall would decide everything and bge-small's edge would be the whole ballgame.
